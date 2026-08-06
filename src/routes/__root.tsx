@@ -6,7 +6,6 @@ import {
   Monitor, AlertCircle, Plus, TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { Dialog } from '../components/ui/Dialog';
 import { Button } from '../components/ui/Button';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { ToastContainer } from '../components/ui/Toast';
@@ -33,8 +32,7 @@ export const RootLayout: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     return (window.localStorage.getItem('theme') as any) || 'system';
   });
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  
+
   // Auth Form State
   const [isSignUp, setIsSignUp] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
@@ -44,8 +42,6 @@ export const RootLayout: React.FC = () => {
   const [authPhone, setAuthPhone] = useState('');
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
-
-  const [notifications, setNotifications] = useState<any[]>([]);
 
   const routerState = useRouterState();
   const navigate = useNavigate();
@@ -87,17 +83,6 @@ export const RootLayout: React.FC = () => {
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
   }, [theme]);
-
-  // Load Notifications only once when session is established
-  useEffect(() => {
-    if (session) {
-      supabase.from('notifications').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-        if (data) setNotifications(data);
-      });
-    }
-  }, [session]);
-
-
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -489,37 +474,6 @@ export const RootLayout: React.FC = () => {
           </ErrorBoundary>
         </main>
       </div>
-
-      {/* NOTIFICATIONS DIALOG */}
-      <Dialog 
-        isOpen={isNotificationOpen} 
-        onClose={() => setIsNotificationOpen(false)} 
-        title="Due Dates & Alerts"
-      >
-        <div className="space-y-3">
-          {notifications.length === 0 ? (
-            <div className="py-8 text-center text-xs text-muted-foreground select-none">
-              No pending bills or alerts due.
-            </div>
-          ) : (
-            notifications.map((item) => (
-              <div 
-                key={item.id}
-                className={`
-                  p-3.5 rounded-xl border border-border/50 flex gap-3
-                  ${item.is_read ? 'bg-background/40 opacity-70' : 'bg-primary/5 border-primary/20'}
-                `}
-              >
-                <AlertCircle className="h-4.5 w-4.5 text-amber-500 shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-xs font-bold text-foreground">{item.title}</div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{item.message}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </Dialog>
 
       <ConfirmDialog />
       <ToastContainer />

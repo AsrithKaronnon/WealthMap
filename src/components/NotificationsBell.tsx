@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, Check, Trash2, ArrowRight } from 'lucide-react';
+import { Bell, Check, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from '@tanstack/react-router';
 
@@ -24,7 +24,7 @@ export function NotificationsBell() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)
