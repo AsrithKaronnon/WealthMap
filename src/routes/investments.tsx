@@ -663,8 +663,8 @@ export const Investments: React.FC = () => {
       </div>
 
       {/* Total Net Worth Banner */}
-      <Card className="bg-primary text-primary-foreground border-none">
-        <CardContent className="p-5 sm:p-7 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="bg-primary text-primary-foreground border-none rounded-2xl shadow-lg transition-all duration-300 overflow-hidden">
+        <div className="p-5 sm:p-7 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex flex-col text-center sm:text-left">
             <span className="text-xs font-semibold uppercase tracking-widest opacity-75 mb-1">Total Net Worth</span>
             <span className="text-4xl sm:text-5xl font-extrabold flex items-center justify-center sm:justify-start">
