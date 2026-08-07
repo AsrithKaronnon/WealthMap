@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/Finapp/',
+  base: '/WealthMap/',
   plugins: [
     react(), 
     tailwindcss(),
