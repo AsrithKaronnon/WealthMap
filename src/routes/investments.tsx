@@ -695,8 +695,8 @@ export const Investments: React.FC = () => {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Asset Tab Bar — using same Tabs component as Goals page */}
       <div className="overflow-x-auto pb-1">
