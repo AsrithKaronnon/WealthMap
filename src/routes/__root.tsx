@@ -421,19 +421,6 @@ export const RootLayout: React.FC = () => {
         })}
       </div>
 
-      <button
-        onClick={() => {
-          navigate({ to: '/money' });
-          setTimeout(() => {
-            const input = document.getElementById('quick-expense-input');
-            if (input) input.focus();
-          }, 200);
-        }}
-        className="md:hidden fixed bottom-[90px] right-4 h-14 w-14 rounded-full bg-primary text-primary-foreground clay-btn flex items-center justify-center z-50 cursor-pointer"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
-
       {/* MAIN CONTENT SECTION */}
       <div className="flex-1 flex flex-col h-full overflow-hidden pb-[80px] md:pb-0">
         

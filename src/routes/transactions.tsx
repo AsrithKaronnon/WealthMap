@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabaseClient';
 import { toast } from '../lib/useToastStore';
 import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
-import { parseTextTransaction, parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
+import { parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
 import { 
-  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, PieChart, Camera, UploadCloud
+  Plus, Search, Trash2, FileText, Pencil, Download, PieChart, Camera, UploadCloud, Sparkles
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -38,10 +38,6 @@ export const Transactions: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'year' | 'custom'>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
-  
-  // Quick Add State
-  const [quickAddVal, setQuickAddVal] = useState('');
-  const [quickAddLoading, setQuickAddLoading] = useState(false);
   
   // Receipt Upload State
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -156,130 +152,6 @@ export const Transactions: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleQuickCameraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!isGeminiConfigured()) {
-      toast.error('AI not configured. Add your API key in Settings.');
-      return;
-    }
-
-    setQuickAddLoading(true);
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const base64 = evt.target?.result as string;
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Authentication required");
-
-        const availableCats = [...expenseCategories, ...incomeCategories].map(c => c.name);
-        const parsed = await parseReceiptImage(base64, file.type, availableCats);
-        
-        if (!parsed.merchant || !parsed.amount) {
-           throw new Error("Could not extract receipt data clearly. Please ensure the image is clear.");
-        }
-
-        let categoryId = parsed.isIncome 
-          ? incomeCategories[0]?.id || SEED.income_categories.salary
-          : expenseCategories[0]?.id || SEED.expense_categories.food;
-          
-        if (parsed.categoryName) {
-          const found = [...expenseCategories, ...incomeCategories].find(c => 
-            c.name.toLowerCase() === parsed.categoryName?.toLowerCase()
-          );
-          if (found) categoryId = found.id;
-        }
-
-        let receipt_url = null;
-        // Upload image
-        const fileExt = file.name.split('.').pop() || 'jpg';
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, file);
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(filePath);
-          receipt_url = urlData.publicUrl;
-        }
-
-        const newTx = {
-          date: parsed.date || new Date().toISOString().split('T')[0],
-          amount: parsed.amount,
-          transaction_type_id: parsed.isIncome ? SEED.transaction_types.income : SEED.transaction_types.expense,
-          category_id: categoryId,
-          account_id: accounts[0].id,
-          payment_method_id: SEED.payment_methods.debit_card,
-          merchant: parsed.merchant,
-          notes: `AI Scanned Receipt`,
-          tags: ['Essential'],
-          is_recurring: false,
-          created_by: user.id,
-          receipt_url
-        };
-
-        const { error } = await supabase.from('transactions').insert([newTx]);
-        if (error) throw error;
-        
-        fetchData();
-        toast.success('Receipt scanned and saved directly!');
-      } catch (err: any) {
-        toast.error(err.message || 'Error processing receipt');
-      } finally {
-        setQuickAddLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleQuickAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickAddVal.trim()) return;
-    
-    setQuickAddLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Authentication required");
-
-      const availableCats = [...expenseCategories, ...incomeCategories].map(c => c.name);
-      const parsed = await parseTextTransaction(quickAddVal, availableCats);
-      
-      let categoryId = parsed.isIncome 
-        ? incomeCategories[0]?.id || SEED.income_categories.salary
-        : expenseCategories[0]?.id || SEED.expense_categories.food;
-        
-      if (parsed.categoryName) {
-        const found = [...expenseCategories, ...incomeCategories].find(c => 
-          c.name.toLowerCase() === parsed.categoryName?.toLowerCase()
-        );
-        if (found) categoryId = found.id;
-      }
-
-      const newTx = {
-        date: parsed.date || new Date().toISOString().split('T')[0],
-        amount: parsed.amount,
-        transaction_type_id: parsed.isIncome ? SEED.transaction_types.income : SEED.transaction_types.expense,
-        category_id: categoryId,
-        account_id: accounts[0].id,
-        payment_method_id: SEED.payment_methods.debit_card,
-        merchant: parsed.merchant,
-        notes: `AI Quick entry: "${quickAddVal}"`,
-        tags: ['Essential'],
-        is_recurring: false,
-        created_by: user.id
-      };
-
-      const { error } = await supabase.from('transactions').insert([newTx]);
-      if (error) throw error;
-      setQuickAddVal('');
-      fetchData();
-      toast.success('Quick entry parsed and saved!');
-    } catch (err: any) {
-      toast.error(err.message || 'Error entering spend');
-    } finally {
-      setQuickAddLoading(false);
-    }
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1136,47 +1008,6 @@ export const Transactions: React.FC = () => {
           )}
         </div>
       </Dialog>
-
-      {/* QUICK ENTRY BOX (Moved to bottom) */}
-      <div className="mt-8">
-        <Card className="border border-primary/20 bg-primary/5 shadow-xs">
-          <CardContent className="p-6">
-            <form onSubmit={handleQuickAdd} className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="flex items-center gap-2 text-primary shrink-0 select-none">
-                <Sparkles className="icon-card animate-pulse text-amber-500" />
-                <span className="label-text text-primary">AI Quick Log</span>
-              </div>
-              <div className="relative flex-1 w-full flex items-center">
-                <input 
-                  id="quick-expense-input"
-                  type="text" 
-                  placeholder='Type what you bought or earned (e.g. Starbucks 5 or Salary 2500)'
-                  value={quickAddVal}
-                  onChange={(e) => setQuickAddVal(e.target.value)}
-                  className="w-full bg-background pl-3 pr-10 py-2 rounded-xl text-sm outline-none"
-                  disabled={quickAddLoading}
-                />
-                {isGeminiConfigured() && (
-                  <label className="absolute right-2 text-muted-foreground hover:text-primary cursor-pointer transition-colors p-1">
-                    <Camera className="h-5 w-5" />
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      className="hidden" 
-                      onChange={handleQuickCameraUpload}
-                      disabled={quickAddLoading}
-                    />
-                  </label>
-                )}
-              </div>
-              <Button type="submit" size="md" loading={quickAddLoading} className="w-full md:w-auto cursor-pointer">
-                Save Entry
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
 
     </div>
   );
