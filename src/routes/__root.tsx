@@ -421,6 +421,8 @@ export const RootLayout: React.FC = () => {
         })}
       </div>
 
+      {/* Removed FAB */}
+
       {/* MAIN CONTENT SECTION */}
       <div className="flex-1 flex flex-col h-full overflow-hidden pb-[80px] md:pb-0">
         

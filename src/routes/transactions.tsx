@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabaseClient';
 import { toast } from '../lib/useToastStore';
 import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
-import { parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
+import { parseTextTransaction, parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
 import { 
-  Plus, Search, Trash2, FileText, Pencil, Download, PieChart, Camera, UploadCloud, Sparkles
+  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, PieChart, Camera, UploadCloud, Filter
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -38,6 +38,10 @@ export const Transactions: React.FC = () => {
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'year' | 'custom'>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  
+  // Quick Add State
+  const [quickAddVal, setQuickAddVal] = useState('');
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
   
   // Receipt Upload State
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -152,6 +156,130 @@ export const Transactions: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleQuickCameraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!isGeminiConfigured()) {
+      toast.error('AI not configured. Add your API key in Settings.');
+      return;
+    }
+
+    setQuickAddLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const base64 = evt.target?.result as string;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Authentication required");
+
+        const availableCats = [...expenseCategories, ...incomeCategories].map(c => c.name);
+        const parsed = await parseReceiptImage(base64, file.type, availableCats);
+        
+        if (!parsed.merchant || !parsed.amount) {
+           throw new Error("Could not extract receipt data clearly. Please ensure the image is clear.");
+        }
+
+        let categoryId = parsed.isIncome 
+          ? incomeCategories[0]?.id || SEED.income_categories.salary
+          : expenseCategories[0]?.id || SEED.expense_categories.food;
+          
+        if (parsed.categoryName) {
+          const found = [...expenseCategories, ...incomeCategories].find(c => 
+            c.name.toLowerCase() === parsed.categoryName?.toLowerCase()
+          );
+          if (found) categoryId = found.id;
+        }
+
+        let receipt_url = null;
+        // Upload image
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, file);
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(filePath);
+          receipt_url = urlData.publicUrl;
+        }
+
+        const newTx = {
+          date: parsed.date || new Date().toISOString().split('T')[0],
+          amount: parsed.amount,
+          transaction_type_id: parsed.isIncome ? SEED.transaction_types.income : SEED.transaction_types.expense,
+          category_id: categoryId,
+          account_id: accounts[0].id,
+          payment_method_id: SEED.payment_methods.debit_card,
+          merchant: parsed.merchant,
+          notes: `AI Scanned Receipt`,
+          tags: ['Essential'],
+          is_recurring: false,
+          created_by: user.id,
+          receipt_url
+        };
+
+        const { error } = await supabase.from('transactions').insert([newTx]);
+        if (error) throw error;
+        
+        fetchData();
+        toast.success('Receipt scanned and saved directly!');
+      } catch (err: any) {
+        toast.error(err.message || 'Error processing receipt');
+      } finally {
+        setQuickAddLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAddVal.trim()) return;
+    
+    setQuickAddLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Authentication required");
+
+      const availableCats = [...expenseCategories, ...incomeCategories].map(c => c.name);
+      const parsed = await parseTextTransaction(quickAddVal, availableCats);
+      
+      let categoryId = parsed.isIncome 
+        ? incomeCategories[0]?.id || SEED.income_categories.salary
+        : expenseCategories[0]?.id || SEED.expense_categories.food;
+        
+      if (parsed.categoryName) {
+        const found = [...expenseCategories, ...incomeCategories].find(c => 
+          c.name.toLowerCase() === parsed.categoryName?.toLowerCase()
+        );
+        if (found) categoryId = found.id;
+      }
+
+      const newTx = {
+        date: parsed.date || new Date().toISOString().split('T')[0],
+        amount: parsed.amount,
+        transaction_type_id: parsed.isIncome ? SEED.transaction_types.income : SEED.transaction_types.expense,
+        category_id: categoryId,
+        account_id: accounts[0].id,
+        payment_method_id: SEED.payment_methods.debit_card,
+        merchant: parsed.merchant,
+        notes: `AI Quick entry: "${quickAddVal}"`,
+        tags: ['Essential'],
+        is_recurring: false,
+        created_by: user.id
+      };
+
+      const { error } = await supabase.from('transactions').insert([newTx]);
+      if (error) throw error;
+      setQuickAddVal('');
+      fetchData();
+      toast.success('Quick entry parsed and saved!');
+    } catch (err: any) {
+      toast.error(err.message || 'Error entering spend');
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -451,68 +579,69 @@ export const Transactions: React.FC = () => {
     <div className="flex flex-col gap-2 sm:gap-6">
       
       {/* HEADER: Title & Actions */}
-      <div className="flex flex-row justify-between items-center w-full select-none">
-        <div>
-          <h1 className="page-title text-foreground">Transactions</h1>
-          <p className="secondary-text hidden sm:block">Trace cash logs, view receipts, and record daily transactions.</p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Button onClick={handleExportCSV} variant="outline" size="sm" className="flex items-center gap-1.5 cursor-pointer">
-            <Download className="icon-inline" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
-          <Button 
+      <div className="flex flex-row justify-between items-center w-full select-none mb-1">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Transactions</h1>
+        <div className="flex items-center gap-3 shrink-0">
+          <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-muted-foreground transition-colors cursor-pointer">
+            <Download className="h-4 w-4" />
+          </button>
+          <button 
             onClick={handleOpenAdd} 
-            size="sm" 
-            className="flex items-center justify-center cursor-pointer h-10 w-10 p-0 sm:w-auto sm:px-3 sm:py-1.5 sm:gap-1.5 rounded-full sm:rounded-lg"
+            className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer shadow-lg shadow-primary/20"
           >
-            <Plus className="icon-inline" />
-            <span className="hidden sm:inline">Add</span>
-          </Button>
+            <Plus className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
 
 
       {/* FILTER BUTTON TABS */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-center justify-between select-none">
-        <div className="w-full sm:w-72">
-          <Tabs
-            options={[
-              { id: 'all', label: 'All Items' },
-              { id: 'spends', label: 'Spends' },
-              { id: 'income', label: 'Income' }
-            ]}
-            activeId={activeTab}
-            onChange={(id: any) => setActiveTab(id)}
-          />
-        </div>
+      <div className="flex bg-[#111111] border border-white/5 rounded-[2rem] p-1.5 w-full select-none mb-1">
+        {(['all', 'spends', 'income'] as const).map(id => {
+          const isActive = activeTab === id;
+          const labels: any = { all: 'All', spends: 'Expenses', income: 'Income' };
+          return (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex-1 text-[13px] font-medium rounded-full py-2.5 transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md' : 'text-muted-foreground hover:text-white'}`}
+            >
+              {labels[id]}
+            </button>
+          )
+        })}
+      </div>
 
-        {/* Small Search & Date Filter */}
-        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 w-full sm:w-auto">
-          <select 
-            value={dateFilter}
-            onChange={(e: any) => setDateFilter(e.target.value)}
-            className="no-focus-ring text-xs px-2 py-1.5 border border-border rounded-xl bg-background text-foreground focus:outline-none focus:ring-0 focus:border-border cursor-pointer h-[32px] w-full sm:w-auto"
-          >
-            <option value="all">All Time</option>
-            <option value="week">Last 7 Days</option>
-            <option value="month">This Month</option>
-            <option value="year">This Year</option>
-            <option value="custom">Custom Range</option>
-          </select>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 clay-input-wrapper w-full sm:w-64 h-[48px]">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Search details..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="no-focus-ring text-xs text-foreground bg-transparent border-none focus:outline-none focus:ring-0 flex-1"
-            />
-          </div>
-        </div>
+      {/* Small Date Filter & Filter Icon */}
+      <div className="flex flex-row items-center justify-between gap-3 w-full mb-1">
+        <select 
+          value={dateFilter}
+          onChange={(e: any) => setDateFilter(e.target.value)}
+          className="no-focus-ring text-[13px] font-medium px-4 py-3 bg-[#1A1A1A] border border-white/5 rounded-2xl text-foreground focus:outline-none focus:ring-0 focus:border-border cursor-pointer w-[140px]"
+        >
+          <option value="all">All Time</option>
+          <option value="week">Last 7 Days</option>
+          <option value="month">This Month</option>
+          <option value="year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+        
+        <button className="flex items-center justify-center h-11 w-11 rounded-2xl bg-[#1A1A1A] border border-white/5 text-muted-foreground">
+           <Filter className="h-4 w-4" />
+        </button>
+      </div>
+      
+      {/* Search Bar */}
+      <div className="flex items-center gap-2 px-3 h-9 bg-[#1A1A1A] border border-white/5 rounded-xl w-full mb-2">
+        <Search className="h-3.5 w-3.5 text-muted-foreground opacity-70" />
+        <input 
+          type="text" 
+          placeholder="Search transactions..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="no-focus-ring text-xs font-medium text-foreground bg-transparent border-none h-full focus:outline-none focus:ring-0 flex-1 placeholder:text-muted-foreground py-0"
+        />
       </div>
 
       {dateFilter === 'custom' && (
@@ -627,92 +756,101 @@ export const Transactions: React.FC = () => {
 
       {/* TRANSACTION FEED LISTINGS */}
       {activeTab !== 'budgets' && (
-      <Card>
-        <CardContent className="p-1 sm:p-2 space-y-0.5">
-          {loading ? (
-            <div className="space-y-2 p-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-[60px] w-full skeleton" />
-              ))}
-            </div>
-          ) : filteredTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mb-3 opacity-20" />
-              <p className="text-sm font-medium">No transactions found</p>
-              <p className="text-xs opacity-70 mt-1">Adjust your filters or add a new transaction.</p>
-            </div>
-          ) : (
-            filteredTransactions.map((tx) => {
-              const isIncome = tx.transaction_type_id === SEED.transaction_types.income;
-              const isTransferTx = tx.transaction_type_id === SEED.transaction_types.transfer;
-              const catName = isIncome
-                ? incomeCategories.find(c => c.id === tx.category_id)?.name || 'General Income'
-                : (isTransferTx ? 'Transfer' : expenseCategories.find(c => c.id === tx.category_id)?.name || 'General Spend');
+      <div className="flex flex-col gap-2 mt-2 pb-6">
+        {loading ? (
+          <div className="space-y-2 p-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-[60px] w-full skeleton rounded-2xl" />
+            ))}
+          </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
+            <FileText className="h-12 w-12 mb-3 opacity-20" />
+            <p className="text-sm font-medium">No transactions found</p>
+            <p className="text-xs opacity-70 mt-1">Adjust your filters or add a new transaction.</p>
+          </div>
+        ) : (
+          (() => {
+            // Group transactions by date
+            const groupedTransactions = filteredTransactions.reduce((acc: any, tx) => {
+              const dateObj = new Date(tx.date);
+              let dateLabel = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              
+              const today = new Date();
+              const yesterday = new Date();
+              yesterday.setDate(today.getDate() - 1);
+              
+              if (dateObj.toDateString() === today.toDateString()) {
+                dateLabel = 'Today';
+              } else if (dateObj.toDateString() === yesterday.toDateString()) {
+                dateLabel = 'Yesterday';
+              }
+              
+              if (!acc[dateLabel]) acc[dateLabel] = [];
+              acc[dateLabel].push(tx);
+              return acc;
+            }, {});
 
-              const sourceAccName = accounts.find(a => a.id === tx.account_id)?.name || 'Account';
-              const destAccName = accounts.find(a => a.id === tx.transfer_to_account_id)?.name || 'Account';
-              const displayMerchant = isTransferTx ? `${sourceAccName} → ${destAccName}` : tx.merchant;
+            return Object.entries(groupedTransactions).map(([dateLabel, txs]: any) => (
+              <div key={dateLabel} className="flex flex-col gap-1.5">
+                <h3 className="text-[13px] font-medium text-muted-foreground opacity-90 px-1">{dateLabel}</h3>
+                <div className="bg-[#1A1A1A] border border-white/5 rounded-2xl overflow-hidden flex flex-col p-0">
+                  {txs.map((tx: any, idx: number) => {
+                    const isIncome = tx.transaction_type_id === SEED.transaction_types.income;
+                    const isTransferTx = tx.transaction_type_id === SEED.transaction_types.transfer;
+                    const catName = isIncome
+                      ? incomeCategories.find(c => c.id === tx.category_id)?.name || 'Income'
+                      : (isTransferTx ? 'Transfer' : expenseCategories.find(c => c.id === tx.category_id)?.name || 'General Spend');
 
-              return (
-                <div 
-                  key={tx.id} 
-                  onClick={() => setExpandedTxId(expandedTxId === tx.id ? null : tx.id)}
-                  className="group flex flex-col sm:flex-row sm:items-center justify-between border-b border-border/10 py-1.5 sm:py-2.5 px-3 gap-1 sm:gap-2 last:border-0 hover:bg-[#F8F8F8] dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-                >
-                  {/* Left block description */}
-                  <div className="flex items-center gap-3 min-w-0 w-full sm:flex-1">
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs select-none shrink-0 ${isIncome ? 'bg-green-500/10 text-green-500' : isTransferTx ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
-                      {isIncome ? 'I' : isTransferTx ? 'A' : 'S'}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-extrabold text-foreground truncate leading-tight">{displayMerchant}</span>
-                      <span className="text-xs text-muted-foreground/70 font-light mt-0.5 truncate leading-none block">
-                        {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {catName}
-                        {tx.is_recurring && (
-                          <span className="ml-1.5 text-primary/60 bg-primary/10 px-1 py-0.5 rounded text-[10px] font-medium uppercase inline-flex items-center gap-1">
-                            {tx.recurrence_interval} 
-                            {tx.next_recurring_date && <span className="opacity-70">(Next: {tx.next_recurring_date})</span>}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
+                    const sourceAccName = accounts.find(a => a.id === tx.account_id)?.name || 'Account';
+                    const destAccName = accounts.find(a => a.id === tx.transfer_to_account_id)?.name || 'Account';
+                    const displayMerchant = isTransferTx ? `${sourceAccName} → ${destAccName}` : tx.merchant;
+                    const amt = Math.abs(parseFloat(tx.amount) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
-                  {/* Right block amount & actions */}
-                  <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-2 sm:pt-0 shrink-0 border-t border-border/10 sm:border-none">
-                    <span className={`text-sm font-mono font-bold text-right sm:w-[100px] ${isIncome ? 'text-emerald-500/90' : isTransferTx ? 'text-blue-500/90' : 'text-foreground/75 dark:text-gray-300'}`}>
-                      {isIncome || parseFloat(tx.amount) > 0 ? '+' : '-'}{currencySymbol}{Math.abs(parseFloat(tx.amount) || 0).toFixed(0)}
-                    </span>
-                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => setSelectedTxForReceipt(tx)}
-                        aria-label="View Receipt"
-                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-foreground dark:hover:bg-white/10 transition-colors cursor-pointer"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </button>
-                      <button 
+                    return (
+                      <div 
+                        key={tx.id}
+                        className={`group flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/5 transition-colors relative cursor-pointer`}
                         onClick={() => handleOpenEdit(tx)}
-                        aria-label="Edit Transaction"
-                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-primary dark:hover:bg-white/10 transition-colors cursor-pointer"
                       >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(tx.id)}
-                        aria-label="Delete Transaction"
-                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-destructive dark:hover:bg-white/10 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="h-[16px] w-[16px]" />
-                      </button>
-                    </div>
-                  </div>
+                        <div className="flex items-center gap-3.5">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${isIncome ? 'bg-green-500/10 text-green-500' : isTransferTx ? 'bg-[#1E2B3C] text-[#3B82F6]' : 'bg-[#2C1C1E] text-[#EF4444]'}`}>
+                            {isIncome ? 'I' : isTransferTx ? 'A' : 'S'}
+                          </div>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[14px] font-semibold text-foreground/95 leading-tight">{displayMerchant}</span>
+                              {tx.receipt_url && (
+                                <div onClick={(e) => { e.stopPropagation(); setSelectedTxForReceipt(tx); }} className="bg-primary/20 p-1 rounded-full text-primary hover:bg-primary/30 transition-colors" title="View Receipt">
+                                  <FileText className="h-3 w-3" />
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none">{catName}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          <div className={`text-[15px] font-bold ${isIncome ? 'text-emerald-500' : isTransferTx ? 'text-blue-500' : 'text-red-500'}`}>
+                            {isIncome ? '+' : isTransferTx ? '' : '-'}{currencySymbol}{amt}
+                          </div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }} 
+                            className="p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-white/10 rounded-lg transition-colors"
+                            title="Delete transaction"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ));
+          })()
+        )}
+      </div>
       )}
 
       {/* MANUAL ENTRY DIALOG */}
@@ -959,6 +1097,11 @@ export const Transactions: React.FC = () => {
           </div>
 
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4 select-none">
+            {editingTxId && (
+              <Button type="button" variant="outline" className="text-red-500 hover:text-red-600 border-red-500/20 bg-red-500/10 mr-auto flex items-center" onClick={() => { setIsModalOpen(false); handleDelete(editingTxId); }}>
+                <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
@@ -1008,6 +1151,47 @@ export const Transactions: React.FC = () => {
           )}
         </div>
       </Dialog>
+
+      {/* QUICK ENTRY BOX (Moved to bottom) */}
+      <div className="mt-8">
+        <Card className="border border-primary/20 bg-primary/5 shadow-xs">
+          <CardContent className="p-6">
+            <form onSubmit={handleQuickAdd} className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex items-center gap-2 text-primary shrink-0 select-none">
+                <Sparkles className="icon-card animate-pulse text-amber-500" />
+                <span className="label-text text-primary">AI Quick Log</span>
+              </div>
+              <div className="relative flex-1 w-full flex items-center">
+                <input 
+                  id="quick-expense-input"
+                  type="text" 
+                  placeholder='Type what you bought or earned (e.g. Starbucks 5 or Salary 2500)'
+                  value={quickAddVal}
+                  onChange={(e) => setQuickAddVal(e.target.value)}
+                  className="w-full bg-background pl-3 pr-10 py-2 rounded-xl text-sm outline-none"
+                  disabled={quickAddLoading}
+                />
+                {isGeminiConfigured() && (
+                  <label className="absolute right-2 text-muted-foreground hover:text-primary cursor-pointer transition-colors p-1">
+                    <Camera className="h-5 w-5" />
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment"
+                      className="hidden" 
+                      onChange={handleQuickCameraUpload}
+                      disabled={quickAddLoading}
+                    />
+                  </label>
+                )}
+              </div>
+              <Button type="submit" size="md" loading={quickAddLoading} className="w-full md:w-auto cursor-pointer">
+                Save Entry
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
 
     </div>
   );

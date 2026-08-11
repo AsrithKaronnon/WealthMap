@@ -356,32 +356,41 @@ export const Settings: React.FC = () => {
     <div className="flex flex-col gap-6">
       
       {/* Title */}
-      <div className="select-none">
-        <h1 className="text-xl font-bold text-foreground">Settings</h1>
-        <p className="text-xs text-muted-foreground">Adjust layout preferences, default currencies, and sandbox resets.</p>
+      <div className="select-none mb-2">
+        <h1 className="text-[22px] font-bold text-foreground tracking-tight">Settings</h1>
       </div>
 
-      <div className="max-w-2xl space-y-6">
-
-        {/* Profile Settings Card */}
-        <Card className="overflow-hidden">
-          <CardHeader 
-            onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')} 
-            className="pb-3 select-none cursor-pointer hover:bg-muted/10 transition-colors flex flex-row items-center justify-between"
-          >
-            <div>
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <User className="h-4.5 w-4.5 text-primary" />
-                Profile Settings
-              </CardTitle>
-              <CardDescription className="text-xs">Update your personal contact details and names</CardDescription>
+      <div className="flex flex-col gap-2 max-w-2xl">
+        {/* PROFILE HEADER CARD */}
+        <div className="bg-[#1A1A1A] border border-white/5 rounded-[1.5rem] p-4 flex items-center justify-between mb-2 shadow-lg">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center overflow-hidden border-2 border-white/10">
+               <User className="h-6 w-6 text-white/50" />
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-              activeSection === 'profile' ? 'transform rotate-180' : ''
-            }`} />
-          </CardHeader>
+            <div className="flex flex-col">
+              <span className="text-[16px] font-bold text-foreground">{firstName || 'User'} {lastName}</span>
+              <span className="text-[12px] text-muted-foreground">{phone || 'user@example.com'}</span>
+            </div>
+          </div>
+          <ChevronDown className="h-5 w-5 text-muted-foreground/50 -rotate-90" />
+        </div>
+
+        {/* PROFILE SETTINGS */}
+        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')} className="p-4 flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                <User className="h-5 w-5 text-blue-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-foreground">Profile Settings</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">Manage your personal information</span>
+              </div>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'profile' ? '' : '-rotate-90'}`} />
+          </div>
           {activeSection === 'profile' && (
-            <CardContent>
+            <div className="p-4 border-t border-white/5 bg-black/20">
               <form onSubmit={handleProfileUpdate} className="space-y-4">
                 {profileMsg && (
                   <div className={`p-3 rounded-lg border text-xs font-semibold ${
@@ -431,34 +440,31 @@ export const Settings: React.FC = () => {
                   Save Profile Details
                 </Button>
               </form>
-            </CardContent>
+            </div>
           )}
-        </Card>
+        </div>
 
-        {/* Budget Limits Card */}
-        <Card className="overflow-hidden">
-          <CardHeader 
-            onClick={() => setActiveSection(activeSection === 'budgets' ? null : 'budgets')} 
-            className="pb-3 select-none cursor-pointer hover:bg-muted/10 transition-colors flex flex-row items-center justify-between"
-          >
-            <div>
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Sliders className="h-4.5 w-4.5 text-primary" />
-                Monthly Budget
-              </CardTitle>
-              <CardDescription className="text-xs">Configure your monthly category spending ceilings</CardDescription>
+        {/* MONTHLY BUDGET */}
+        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'budgets' ? null : 'budgets')} className="p-4 flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
+                <Sliders className="h-5 w-5 text-indigo-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-foreground">Monthly Budget</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">Set your budget and spending limits</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="h-[28px] text-[10px] px-2 py-0 gap-1 rounded-md cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsAddingBudget(true); setActiveSection('budgets'); }}>
-                <Plus className="h-3 w-3" /> Add Category
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="outline" className="h-[28px] text-[10px] px-2 py-0 gap-1 rounded-md cursor-pointer border-white/10" onClick={(e) => { e.stopPropagation(); setIsAddingBudget(true); setActiveSection('budgets'); }}>
+                <Plus className="h-3 w-3" /> Add
               </Button>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-                activeSection === 'budgets' ? 'transform rotate-180' : ''
-              }`} />
+              <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'budgets' ? '' : '-rotate-90'}`} />
             </div>
-          </CardHeader>
+          </div>
           {activeSection === 'budgets' && (
-            <CardContent>
+            <div className="p-4 border-t border-white/5 bg-black/20">
               <form onSubmit={handleSaveBudgets} className="space-y-4">
                 {budgetsMsg && (
                   <div className={`p-3 rounded-lg border text-xs font-semibold ${budgetsMsg.includes('Error') ? 'bg-destructive/10 border-destructive/25 text-destructive' : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'}`}>
@@ -524,7 +530,7 @@ export const Settings: React.FC = () => {
                 {userBudgets.length === 0 && !isAddingBudget && (
                   <div className="py-8 text-center border border-dashed border-border/60 rounded-xl">
                     <p className="text-xs text-muted-foreground">No categories tracked.</p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">Click Add Category to begin budgeting.</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1">Click Add to begin budgeting.</p>
                   </div>
                 )}
 
@@ -578,31 +584,28 @@ export const Settings: React.FC = () => {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          )}
-        </Card>
-
-
-        
-        {/* Color Theme Preference */}
-        <Card className="overflow-hidden">
-          <CardHeader 
-            onClick={() => setActiveSection(activeSection === 'theme' ? null : 'theme')} 
-            className="pb-3 select-none cursor-pointer hover:bg-muted/10 transition-colors flex flex-row items-center justify-between"
-          >
-            <div>
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Sun className="h-4.5 w-4.5 text-primary" />
-                Theme Preference
-              </CardTitle>
-              <CardDescription className="text-xs">Select how you want the application to look</CardDescription>
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-              activeSection === 'theme' ? 'transform rotate-180' : ''
-            }`} />
-          </CardHeader>
+          )}
+        </div>
+
+        {/* THEME PREFERENCE */}
+        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'theme' ? null : 'theme')} className="p-4 flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
+                <Sun className="h-5 w-5 text-purple-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-foreground">Theme Preference</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">Dark Mode</span>
+              </div>
+            </div>
+            <div className={`h-6 w-11 rounded-full p-1 flex items-center transition-colors ${theme === 'dark' ? 'bg-purple-600' : 'bg-white/10'} pointer-events-none`}>
+              <div className={`h-4 w-4 bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}`}></div>
+            </div>
+          </div>
           {activeSection === 'theme' && (
-            <CardContent className="flex flex-col sm:flex-row gap-3">
+            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col sm:flex-row gap-3">
               {[
                 { id: 'light', label: 'Light Mode', icon: Sun },
                 { id: 'dark', label: 'Dark Mode', icon: Moon },
@@ -617,8 +620,8 @@ export const Settings: React.FC = () => {
                     className={`
                       flex-1 py-3 px-4 rounded-xl border flex items-center justify-between font-bold text-xs select-none transition-all cursor-pointer
                       ${isSelected 
-                        ? 'border-primary bg-primary/5 text-primary shadow-xs' 
-                        : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                        ? 'border-purple-500 bg-purple-500/10 text-purple-400' 
+                        : 'border-white/10 bg-[#111111] text-muted-foreground hover:text-foreground'
                       }
                     `}
                   >
@@ -626,33 +629,30 @@ export const Settings: React.FC = () => {
                       <Icon className="h-4.5 w-4.5" />
                       {item.label}
                     </span>
-                    {isSelected && <ShieldCheck className="h-4.5 w-4.5 text-primary" />}
+                    {isSelected && <ShieldCheck className="h-4.5 w-4.5 text-purple-400" />}
                   </button>
                 );
               })}
-            </CardContent>
-          )}
-        </Card>
-
-        {/* App Lock & Security */}
-        <Card className="overflow-hidden">
-          <CardHeader 
-            onClick={() => setActiveSection(activeSection === 'security' ? null : 'security')} 
-            className="pb-3 select-none cursor-pointer hover:bg-muted/10 transition-colors flex flex-row items-center justify-between"
-          >
-            <div>
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <ShieldCheck className="h-4.5 w-4.5 text-primary" />
-                App Lock & Security
-              </CardTitle>
-              <CardDescription className="text-xs">Secure the app with a 4-digit PIN or Biometrics</CardDescription>
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-              activeSection === 'security' ? 'transform rotate-180' : ''
-            }`} />
-          </CardHeader>
+          )}
+        </div>
+
+        {/* APP LOCK & SECURITY */}
+        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'security' ? null : 'security')} className="p-4 flex items-center justify-between cursor-pointer">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-pink-500/10 flex items-center justify-center shrink-0">
+                <ShieldCheck className="h-5 w-5 text-pink-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-foreground">App Lock & Security</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">PIN, Biometrics & Security</span>
+              </div>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'security' ? '' : '-rotate-90'}`} />
+          </div>
           {activeSection === 'security' && (
-            <CardContent className="flex flex-col gap-4">
+            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col gap-4">
               {securityMsg && (
                 <div className="p-3 bg-primary/10 text-primary text-xs font-bold rounded-lg text-center">
                   {securityMsg}
@@ -812,9 +812,9 @@ export const Settings: React.FC = () => {
                   </Button>
                 </form>
               </div>
-            </CardContent>
+            </div>
           )}
-        </Card>
+        </div>
 
       </div>
     </div>

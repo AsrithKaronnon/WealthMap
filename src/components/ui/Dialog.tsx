@@ -48,7 +48,7 @@ export const Dialog: React.FC<DialogProps> = ({
           />
 
           {/* Dialog Container */}
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 pb-4 sm:p-4">
             <motion.div
               initial={{ 
                 y: '100%', 
@@ -68,7 +68,7 @@ export const Dialog: React.FC<DialogProps> = ({
               aria-labelledby={title ? "dialog-title" : undefined}
               className={`
                 w-full sm:${sizeClasses[size]} bg-card text-card-foreground clay border-0
-                rounded-t-[2rem] sm:rounded-[1.5rem] flex flex-col max-h-[85vh] sm:max-h-[90vh]
+                rounded-[1.5rem] flex flex-col max-h-[85vh] sm:max-h-[90vh]
               `}
             >
               {/* Header */}
