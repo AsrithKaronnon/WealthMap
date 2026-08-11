@@ -582,7 +582,7 @@ export const Transactions: React.FC = () => {
       <div className="flex flex-row justify-between items-center w-full select-none mb-1">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Transactions</h1>
         <div className="flex items-center gap-3 shrink-0">
-          <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-muted-foreground transition-colors cursor-pointer">
+          <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full clay-btn text-muted-foreground transition-colors cursor-pointer">
             <Download className="h-4 w-4" />
           </button>
           <button 
@@ -597,7 +597,7 @@ export const Transactions: React.FC = () => {
 
 
       {/* FILTER BUTTON TABS */}
-      <div className="flex bg-[#111111] border border-white/5 rounded-[2rem] p-1.5 w-full select-none mb-1">
+      <div className="flex clay-input-wrapper p-1 w-full select-none mb-1">
         {(['all', 'spends', 'income'] as const).map(id => {
           const isActive = activeTab === id;
           const labels: any = { all: 'All', spends: 'Expenses', income: 'Income' };
@@ -605,7 +605,7 @@ export const Transactions: React.FC = () => {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex-1 text-[13px] font-medium rounded-full py-2.5 transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md' : 'text-muted-foreground hover:text-white'}`}
+              className={`flex-1 text-[13px] font-medium rounded-full py-2 transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {labels[id]}
             </button>
@@ -618,7 +618,7 @@ export const Transactions: React.FC = () => {
         <select 
           value={dateFilter}
           onChange={(e: any) => setDateFilter(e.target.value)}
-          className="no-focus-ring text-[13px] font-medium px-4 py-3 bg-[#1A1A1A] border border-white/5 rounded-2xl text-foreground focus:outline-none focus:ring-0 focus:border-border cursor-pointer w-[140px]"
+          className="no-focus-ring text-[13px] font-medium px-4 py-3 clay-input-wrapper text-foreground cursor-pointer w-[140px]"
         >
           <option value="all">All Time</option>
           <option value="week">Last 7 Days</option>
@@ -627,13 +627,13 @@ export const Transactions: React.FC = () => {
           <option value="custom">Custom Range</option>
         </select>
         
-        <button className="flex items-center justify-center h-11 w-11 rounded-2xl bg-[#1A1A1A] border border-white/5 text-muted-foreground">
+        <button className="flex items-center justify-center h-11 w-11 clay-btn text-muted-foreground cursor-pointer">
            <Filter className="h-4 w-4" />
         </button>
       </div>
       
       {/* Search Bar */}
-      <div className="flex items-center gap-2 px-3 h-9 bg-[#1A1A1A] border border-white/5 rounded-xl w-full mb-2">
+      <div className="flex items-center gap-2 px-3 h-11 clay-input-wrapper w-full mb-2">
         <Search className="h-3.5 w-3.5 text-muted-foreground opacity-70" />
         <input 
           type="text" 
@@ -794,7 +794,7 @@ export const Transactions: React.FC = () => {
             return Object.entries(groupedTransactions).map(([dateLabel, txs]: any) => (
               <div key={dateLabel} className="flex flex-col gap-1.5">
                 <h3 className="text-[13px] font-medium text-muted-foreground opacity-90 px-1">{dateLabel}</h3>
-                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col p-0 shadow-sm">
+                <div className="clay rounded-2xl overflow-hidden flex flex-col p-0">
                   {txs.map((tx: any, idx: number) => {
                     const isIncome = tx.transaction_type_id === SEED.transaction_types.income;
                     const isTransferTx = tx.transaction_type_id === SEED.transaction_types.transfer;
