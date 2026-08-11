@@ -579,7 +579,7 @@ export const Transactions: React.FC = () => {
     <div className="flex flex-col gap-2 sm:gap-6">
       
       {/* HEADER: Title & Actions */}
-      <div className="flex flex-row justify-between items-center w-full select-none mb-1">
+      <div className="flex flex-row justify-between items-center w-full select-none">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Transactions</h1>
         <div className="flex items-center gap-3 shrink-0">
           <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full clay-btn text-muted-foreground transition-colors cursor-pointer">
@@ -597,7 +597,7 @@ export const Transactions: React.FC = () => {
 
 
       {/* FILTER BUTTON TABS */}
-      <div className="flex clay-input-wrapper p-1 w-full select-none mb-1">
+      <div className="flex clay-input-wrapper p-1 w-full select-none">
         {(['all', 'spends', 'income'] as const).map(id => {
           const isActive = activeTab === id;
           const labels: any = { all: 'All', spends: 'Expenses', income: 'Income' };
@@ -614,7 +614,7 @@ export const Transactions: React.FC = () => {
       </div>
 
       {/* Small Date Filter & Filter Icon */}
-      <div className="flex flex-row items-center justify-between gap-3 w-full mb-1">
+      <div className="flex flex-row items-center justify-between gap-3 w-full">
         <select 
           value={dateFilter}
           onChange={(e: any) => setDateFilter(e.target.value)}
@@ -633,7 +633,7 @@ export const Transactions: React.FC = () => {
       </div>
       
       {/* Search Bar */}
-      <div className="flex items-center gap-2 px-3 h-11 clay-input-wrapper w-full mb-2">
+      <div className="flex items-center gap-2 px-3 h-11 clay-input-wrapper w-full">
         <Search className="h-3.5 w-3.5 text-muted-foreground opacity-70" />
         <input 
           type="text" 
@@ -756,7 +756,7 @@ export const Transactions: React.FC = () => {
 
       {/* TRANSACTION FEED LISTINGS */}
       {activeTab !== 'budgets' && (
-      <div className="flex flex-col gap-2 mt-2 pb-6">
+      <div className="flex flex-col gap-2 pb-6">
         {loading ? (
           <div className="space-y-2 p-2">
             {[1, 2, 3, 4, 5].map((i) => (
