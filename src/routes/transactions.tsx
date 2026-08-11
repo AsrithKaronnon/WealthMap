@@ -794,7 +794,7 @@ export const Transactions: React.FC = () => {
             return Object.entries(groupedTransactions).map(([dateLabel, txs]: any) => (
               <div key={dateLabel} className="flex flex-col gap-1.5">
                 <h3 className="text-[13px] font-medium text-muted-foreground opacity-90 px-1">{dateLabel}</h3>
-                <div className="bg-[#1A1A1A] border border-white/5 rounded-2xl overflow-hidden flex flex-col p-0">
+                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col p-0 shadow-sm">
                   {txs.map((tx: any, idx: number) => {
                     const isIncome = tx.transaction_type_id === SEED.transaction_types.income;
                     const isTransferTx = tx.transaction_type_id === SEED.transaction_types.transfer;
@@ -810,11 +810,11 @@ export const Transactions: React.FC = () => {
                     return (
                       <div 
                         key={tx.id}
-                        className={`group flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/5 transition-colors relative cursor-pointer`}
+                        className={`group flex items-center justify-between px-3 py-2 rounded-xl hover:bg-accent/50 transition-colors relative cursor-pointer`}
                         onClick={() => handleOpenEdit(tx)}
                       >
                         <div className="flex items-center gap-3.5">
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${isIncome ? 'bg-green-500/10 text-green-500' : isTransferTx ? 'bg-[#1E2B3C] text-[#3B82F6]' : 'bg-[#2C1C1E] text-[#EF4444]'}`}>
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${isIncome ? 'bg-green-500/10 text-green-500' : isTransferTx ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
                             {isIncome ? 'I' : isTransferTx ? 'A' : 'S'}
                           </div>
                           <div className="flex flex-col">
@@ -836,7 +836,7 @@ export const Transactions: React.FC = () => {
                           </div>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }} 
-                            className="p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-white/10 rounded-lg transition-colors"
+                            className="p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                             title="Delete transaction"
                           >
                             <Trash2 className="h-4 w-4" />

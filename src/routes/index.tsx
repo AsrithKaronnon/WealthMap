@@ -366,35 +366,35 @@ export const Dashboard: React.FC = () => {
       {/* ── 4 STAT CARDS ── */}
       <div className="flex flex-col gap-3">
         {/* Top: Net Worth */}
-        <Card className="border border-white/5 bg-[#1A1D24] shadow-lg transition-all duration-200 relative overflow-hidden">
+        <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden">
           <CardContent className="p-4 sm:p-6 h-full flex flex-row items-center justify-between">
-            <div className="flex flex-col gap-2 z-10 w-1/3">
-              <span className="text-xs font-semibold text-white/50 uppercase tracking-wider">Net Worth</span>
+            <div className="flex flex-col gap-2 z-10 w-1/2 sm:w-1/3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth</span>
               {isFetchingPrices ? (
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-white/60" />
-                  <span className="text-xs text-white/70">Updating...</span>
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Updating...</span>
                 </div>
               ) : (
-                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-none tracking-tight">
+                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground leading-none tracking-tight z-20">
                   {fmt(totalNetWorth, currencySymbol)}
                 </span>
               )}
               {!isFetchingPrices && (
-                <div className="flex items-center gap-1 mt-1">
+                <div className="flex items-center gap-1 mt-1 z-20">
                   <span className="text-[10px] sm:text-xs font-bold" style={{ color: nwPercentColor }}>{nwPercentText}</span>
-                  <span className="text-[10px] sm:text-xs text-white/40">vs history</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground/70">vs history</span>
                 </div>
               )}
             </div>
             
             {/* Net Worth Chart */}
             {isFetchingPrices ? (
-              <div className="h-full w-2/3 absolute right-0 bottom-0 flex items-center justify-end pr-8 pb-4 opacity-50">
-                 <Loader2 className="h-8 w-8 animate-spin text-white/20" />
+              <div className="h-full w-1/2 sm:w-2/3 absolute right-0 bottom-0 flex items-center justify-end pr-8 pb-4 opacity-50 z-0">
+                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/20" />
               </div>
             ) : (
-              <div className="h-full w-2/3 absolute right-0 bottom-0 pointer-events-none opacity-80 pt-4">
+              <div className="h-full w-1/2 sm:w-2/3 absolute right-0 bottom-0 pointer-events-none opacity-80 pt-4 z-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={nwChartData}>
                     <defs>
@@ -414,40 +414,40 @@ export const Dashboard: React.FC = () => {
         {/* Bottom: 3 Cards */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {/* Cash */}
-          <Card className="border border-white/5 bg-[#1A1D24] shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
+          <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
             <div className="flex items-center justify-center gap-2 sm:gap-3">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-[#1E352C] flex items-center justify-center shrink-0">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
                 <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#4ADE80]" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-white/50 uppercase tracking-wider truncate">Cash</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">Cash</span>
             </div>
-            <span className="text-lg sm:text-2xl font-bold text-white leading-none tracking-tight text-center">
+            <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(totalBalance, currencySymbol)}
             </span>
           </Card>
 
           {/* Income */}
-          <Card className="border border-white/5 bg-[#1A1D24] shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
+          <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
             <div className="flex items-center justify-center gap-2 sm:gap-3">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-[#1E2A3A] flex items-center justify-center shrink-0">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                 <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#60A5FA]" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-white/50 uppercase tracking-wider truncate">Income</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">Income</span>
             </div>
-            <span className="text-lg sm:text-2xl font-bold text-white leading-none tracking-tight text-center">
+            <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(curIncome, currencySymbol)}
             </span>
           </Card>
 
           {/* Spent */}
-          <Card className="border border-white/5 bg-[#1A1D24] shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
+          <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
             <div className="flex items-center justify-center gap-2 sm:gap-3">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-[#351E24] flex items-center justify-center shrink-0">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
                 <ArrowDownToLine className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#F87171]" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-white/50 uppercase tracking-wider truncate">Spent</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider truncate">Spent</span>
             </div>
-            <span className="text-lg sm:text-2xl font-bold text-white leading-none tracking-tight text-center">
+            <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(curExpense, currencySymbol)}
             </span>
           </Card>
