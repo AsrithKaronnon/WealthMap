@@ -362,7 +362,7 @@ export const Settings: React.FC = () => {
 
       <div className="flex flex-col gap-2 max-w-2xl">
         {/* PROFILE HEADER CARD */}
-        <div className="bg-[#1A1A1A] border border-white/5 rounded-[1.5rem] p-4 flex items-center justify-between mb-2 shadow-lg">
+        <div className="clay rounded-[1.5rem] p-4 flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center overflow-hidden border-2 border-white/10">
                <User className="h-6 w-6 text-white/50" />
@@ -376,8 +376,8 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* PROFILE SETTINGS */}
-        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
-          <div onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')} className="p-4 flex items-center justify-between cursor-pointer">
+        <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')} className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50">
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                 <User className="h-5 w-5 text-blue-400" />
@@ -390,7 +390,7 @@ export const Settings: React.FC = () => {
             <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'profile' ? '' : '-rotate-90'}`} />
           </div>
           {activeSection === 'profile' && (
-            <div className="p-4 border-t border-white/5 bg-black/20">
+            <div className="p-4 border-t border-border/50 bg-muted/10">
               <form onSubmit={handleProfileUpdate} className="space-y-4">
                 {profileMsg && (
                   <div className={`p-3 rounded-lg border text-xs font-semibold ${
@@ -445,8 +445,8 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* MONTHLY BUDGET */}
-        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
-          <div onClick={() => setActiveSection(activeSection === 'budgets' ? null : 'budgets')} className="p-4 flex items-center justify-between cursor-pointer">
+        <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'budgets' ? null : 'budgets')} className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50">
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
                 <Sliders className="h-5 w-5 text-indigo-400" />
@@ -464,7 +464,7 @@ export const Settings: React.FC = () => {
             </div>
           </div>
           {activeSection === 'budgets' && (
-            <div className="p-4 border-t border-white/5 bg-black/20">
+            <div className="p-4 border-t border-border/50 bg-muted/10">
               <form onSubmit={handleSaveBudgets} className="space-y-4">
                 {budgetsMsg && (
                   <div className={`p-3 rounded-lg border text-xs font-semibold ${budgetsMsg.includes('Error') ? 'bg-destructive/10 border-destructive/25 text-destructive' : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'}`}>
@@ -589,8 +589,8 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* THEME PREFERENCE */}
-        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
-          <div onClick={() => setActiveSection(activeSection === 'theme' ? null : 'theme')} className="p-4 flex items-center justify-between cursor-pointer">
+        <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'theme' ? null : 'theme')} className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50">
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0">
                 <Sun className="h-5 w-5 text-purple-400" />
@@ -600,12 +600,10 @@ export const Settings: React.FC = () => {
                 <span className="text-[11px] font-medium text-muted-foreground/60">Dark Mode</span>
               </div>
             </div>
-            <div className={`h-6 w-11 rounded-full p-1 flex items-center transition-colors ${theme === 'dark' ? 'bg-purple-600' : 'bg-white/10'} pointer-events-none`}>
-              <div className={`h-4 w-4 bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}`}></div>
-            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'theme' ? '' : '-rotate-90'}`} />
           </div>
           {activeSection === 'theme' && (
-            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col sm:flex-row gap-3">
+            <div className="p-4 border-t border-border/50 bg-muted/10 flex flex-col sm:flex-row gap-3">
               {[
                 { id: 'light', label: 'Light Mode', icon: Sun },
                 { id: 'dark', label: 'Dark Mode', icon: Moon },
@@ -620,8 +618,8 @@ export const Settings: React.FC = () => {
                     className={`
                       flex-1 py-3 px-4 rounded-xl border flex items-center justify-between font-bold text-xs select-none transition-all cursor-pointer
                       ${isSelected 
-                        ? 'border-purple-500 bg-purple-500/10 text-purple-400' 
-                        : 'border-white/10 bg-[#111111] text-muted-foreground hover:text-foreground'
+                        ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400' 
+                        : 'border-border bg-card text-muted-foreground hover:text-foreground'
                       }
                     `}
                   >
@@ -638,8 +636,8 @@ export const Settings: React.FC = () => {
         </div>
 
         {/* APP LOCK & SECURITY */}
-        <div className="bg-[#111111] border border-white/5 rounded-[1.2rem] overflow-hidden flex flex-col hover:bg-white/5 transition-colors">
-          <div onClick={() => setActiveSection(activeSection === 'security' ? null : 'security')} className="p-4 flex items-center justify-between cursor-pointer">
+        <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'security' ? null : 'security')} className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50">
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 rounded-full bg-pink-500/10 flex items-center justify-center shrink-0">
                 <ShieldCheck className="h-5 w-5 text-pink-400" />
@@ -652,7 +650,7 @@ export const Settings: React.FC = () => {
             <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'security' ? '' : '-rotate-90'}`} />
           </div>
           {activeSection === 'security' && (
-            <div className="p-4 border-t border-white/5 bg-black/20 flex flex-col gap-4">
+            <div className="p-4 border-t border-border/50 bg-muted/10 flex flex-col gap-4">
               {securityMsg && (
                 <div className="p-3 bg-primary/10 text-primary text-xs font-bold rounded-lg text-center">
                   {securityMsg}
