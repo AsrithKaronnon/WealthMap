@@ -4,7 +4,7 @@ import { toast } from '../lib/useToastStore';
 import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
 import { 
-  Plus, Target, Calendar, Trash2, Sparkles, Building, Edit2
+  Plus, Target, Calendar, Trash2, Sparkles, Building, Edit2, Shield, Plane, Laptop
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -358,56 +358,133 @@ export const Goals: React.FC = () => {
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full skeleton" />)}
         </div>
       ) : (
-        <div className="flex flex-col gap-10">
-        {/* SAVINGS GOALS SECTION */}
-        <div>
-          <h2 className="text-lg font-bold text-foreground mb-4">Savings Goals</h2>
-        {goals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border border-dashed border-border/50 rounded-xl">
-            <Target className="h-12 w-12 mb-3 opacity-20" />
-            <p className="text-sm font-medium text-foreground">No Goals Set Yet</p>
-            <Button size="sm" onClick={handleOpenGoalAdd} className="mt-4">Create My First Goal</Button>
+        <div className="flex flex-col gap-8">
+        
+        {/* TOTAL GOALS BANNER */}
+        {goals.length > 0 && (
+          <div className="bg-[#1A1A1A] border border-white/5 rounded-[1.5rem] p-5 sm:p-6 flex justify-between items-center shadow-lg">
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-muted-foreground mb-1">Total Goals Value</span>
+              <span className="text-3xl font-extrabold text-foreground mb-2 tracking-tight">
+                {currencySymbol}{goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+              </span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>
+                {goals.length} Active Goal{goals.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative h-20 w-20 flex items-center justify-center">
+                <svg className="h-full w-full -rotate-90 transform">
+                  <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/5" />
+                  <circle cx="40" cy="40" r="34" stroke="url(#progressGradient)" strokeWidth="6" fill="transparent" strokeDasharray="213.6" strokeDashoffset={213.6 - (213.6 * Math.min(100, Math.round((goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0) / Math.max(1, goals.reduce((acc, g) => acc + (Number(g.target_amount) || 1), 0))) * 100)) / 100)} strokeLinecap="round" />
+                  <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#818cf8" />
+                      <stop offset="100%" stopColor="#6366f1" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-[15px] font-bold">
+                  {Math.min(100, Math.round((goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0) / Math.max(1, goals.reduce((acc, g) => acc + (Number(g.target_amount) || 1), 0))) * 100))}%
+                </div>
+              </div>
+              <span className="text-[10px] text-muted-foreground mt-2 font-medium">Overall Progress</span>
+            </div>
           </div>
+        )}
+
+        {/* SAVINGS GOALS SECTION */}
+        <div className="flex flex-col gap-4">
+          <h2 className="text-[15px] font-bold text-foreground">Active Goals</h2>
+        {goals.length === 0 ? (
+            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] border border-dashed border-white/10 cursor-pointer hover:bg-white/5 transition-colors mt-2">
+              <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                <Plus className="h-5 w-5 text-indigo-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-bold text-foreground">Create New Goal</span>
+                <span className="text-xs font-medium text-muted-foreground/60 mt-0.5">Start saving for something great</span>
+              </div>
+            </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-4">
             {goals.map((goal) => {
               const current = Number(goal.current_amount) || 0;
               const target = Number(goal.target_amount) || 1;
               const pct = Math.min(100, Math.round((current / target) * 100));
 
+              // Determine icon based on goal name
+              const lowerName = goal.name.toLowerCase();
+              let Icon = Target;
+              let iconColor = "text-indigo-400";
+              let iconBg = "bg-[#1A1A1A]";
+              
+              if (lowerName.includes('trip') || lowerName.includes('travel') || lowerName.includes('europe')) {
+                Icon = Plane;
+                iconColor = "text-blue-400";
+              }
+              else if (lowerName.includes('macbook') || lowerName.includes('laptop')) {
+                Icon = Laptop;
+                iconColor = "text-cyan-400";
+              }
+              else if (lowerName.includes('emergency') || lowerName.includes('fund')) {
+                Icon = Shield;
+                iconColor = "text-purple-400";
+              }
+
               return (
-                <Card key={goal.id} className="flex flex-col h-full hoverEffect">
-                  <CardHeader className="pb-3 flex-row justify-between items-start">
-                    <div className="flex flex-col">
-                      <CardTitle className="text-sm">{goal.name}</CardTitle>
-                      <CardDescription className="text-xs mt-0.5 font-medium text-foreground/80">
-                        {currencySymbol}{current.toLocaleString('en-IN', { maximumFractionDigits: 0 })} of {currencySymbol}{target.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                      </CardDescription>
-                    </div>
-                    <button onClick={() => handleGoalDelete(goal.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer transition-colors">
+                <div key={goal.id} className="bg-[#111111] border border-white/5 rounded-[1.5rem] p-5 flex flex-col gap-4 relative group">
+                  
+                  {/* Delete / Deposit Buttons (Hidden until hover) */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setDepositGoal(goal); setDepositAmount(0); }} className="p-2 rounded-full bg-green-500/10 text-green-500" title="Add Money">
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleGoalDelete(goal.id)} className="p-2 rounded-full bg-red-500/10 text-red-500">
                       <Trash2 className="h-4 w-4" />
                     </button>
-                  </CardHeader>
-                  <CardContent className="flex-1 py-2 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                        <div className="bg-primary h-2 rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className={`h-11 w-11 rounded-full ${iconBg} flex items-center justify-center`}>
+                      <Icon className={`h-5 w-5 ${iconColor}`} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[15px] font-bold text-foreground">{goal.name}</span>
+                      <div className="text-[13px] font-semibold mt-0.5 flex gap-1">
+                        <span className="text-indigo-400">{currencySymbol}{current.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-muted-foreground/40">/</span>
+                        <span className="text-muted-foreground/60">{currencySymbol}{target.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                       </div>
-                      <span className="text-xs font-bold text-foreground">{pct}%</span>
                     </div>
-                    <div className="text-xs text-muted-foreground flex justify-between items-center select-none">
-                      <span>{currencySymbol}{Number(goal.monthly_contribution).toLocaleString('en-IN')}/month</span>
-                      <span className="flex items-center gap-1 text-[11px]"><Calendar className="h-3 w-3" /> {new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }}></div>
                     </div>
-                  </CardContent>
-                  <CardFooter className="p-3 bg-muted/10 border-t border-border/40 select-none">
-                    <Button onClick={() => { setDepositGoal(goal); setDepositAmount(0); }} className="w-full py-1 text-xs cursor-pointer bg-background hover:bg-muted text-foreground border border-border/50 shadow-sm" variant="outline">
-                      Add Money
-                    </Button>
-                  </CardFooter>
-                </Card>
+                    <span className="text-xs font-bold text-foreground w-8 text-right">{pct}%</span>
+                  </div>
+
+                  <div className="text-xs font-medium text-muted-foreground/60">
+                    Target: {new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </div>
+                </div>
               );
             })}
+
+            {/* CREATE NEW GOAL BUTTON */}
+            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] border border-dashed border-white/10 cursor-pointer hover:bg-white/5 transition-colors mt-2">
+              <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                <Plus className="h-5 w-5 text-indigo-400" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-bold text-foreground">Create New Goal</span>
+                <span className="text-xs font-medium text-muted-foreground/60 mt-0.5">Start saving for something great</span>
+              </div>
+            </div>
+
           </div>
         )}
         </div>
