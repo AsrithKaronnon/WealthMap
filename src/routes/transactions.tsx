@@ -576,7 +576,7 @@ export const Transactions: React.FC = () => {
   const isTransfer = formData.transaction_type_id === SEED.transaction_types.transfer;
 
   return (
-    <div className="flex flex-col gap-2 sm:gap-6">
+    <div className="flex flex-col gap-1.5">
       
       {/* HEADER: Title & Actions */}
       <div className="flex flex-row justify-between items-center w-full select-none">
@@ -613,12 +613,12 @@ export const Transactions: React.FC = () => {
         })}
       </div>
 
-      {/* Small Date Filter & Filter Icon */}
-      <div className="flex flex-row items-center justify-between gap-3 w-full">
+      {/* Date Filter */}
+      <div className="w-full">
         <select 
           value={dateFilter}
           onChange={(e: any) => setDateFilter(e.target.value)}
-          className="no-focus-ring text-[13px] font-medium px-4 py-3 clay-input-wrapper text-foreground cursor-pointer w-[140px]"
+          className="no-focus-ring text-[13px] font-medium px-4 py-2.5 clay-input-wrapper text-foreground cursor-pointer w-full"
         >
           <option value="all">All Time</option>
           <option value="week">Last 7 Days</option>
@@ -626,14 +626,10 @@ export const Transactions: React.FC = () => {
           <option value="year">This Year</option>
           <option value="custom">Custom Range</option>
         </select>
-        
-        <button className="flex items-center justify-center h-11 w-11 clay-btn text-muted-foreground cursor-pointer">
-           <Filter className="h-4 w-4" />
-        </button>
       </div>
       
       {/* Search Bar */}
-      <div className="flex items-center gap-2 px-3 h-11 clay-input-wrapper w-full">
+      <div className="flex items-center gap-2 px-3 h-10 clay-input-wrapper w-full">
         <Search className="h-3.5 w-3.5 text-muted-foreground opacity-70" />
         <input 
           type="text" 
