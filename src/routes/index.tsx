@@ -137,9 +137,9 @@ export const Dashboard: React.FC = () => {
   const accountsWithBalance = computeAccountBalances(accounts, transactions).filter(a => !hiddenAccountIds.includes(a.id));
   const totalBalance    = totalLiquidBalance(accountsWithBalance);
   
-  const creditCardUsage = accountsWithBalance
+  const creditCardUsage = Math.abs(accountsWithBalance
     .filter(a => a.account_type === 'Credit Card')
-    .reduce((sum, a) => sum + ((a.credit_limit || 0) - (a.computed_balance || 0)), 0);
+    .reduce((sum, a) => sum + (a.computed_balance || 0), 0));
 
   const totalInvestments = investments.reduce((s, i) => s + (i.quantity * (livePrices[i.symbol] || 0)), 0);
   const totalAssets = assets.reduce((s, a) => s + parseFloat(a.current_value || 0), 0);

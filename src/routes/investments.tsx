@@ -395,7 +395,7 @@ export const Investments: React.FC = () => {
       name: acc.name,
       account_type: acc.account_type || 'Checking',
       opening_balance: acc.account_type === 'Credit Card' ? (acc.credit_limit || 0) : (acc.computed_balance || 0),
-      credit_used: acc.account_type === 'Credit Card' ? ((acc.credit_limit || 0) - (acc.computed_balance || 0)) : '',
+      credit_used: acc.account_type === 'Credit Card' ? Math.abs(acc.computed_balance || 0) : '',
       old_credit_limit: acc.credit_limit || 0,
       old_balance: acc.computed_balance || 0
     });
@@ -415,25 +415,9 @@ export const Investments: React.FC = () => {
       if (accountForm.account_type === 'Credit Card') {
         payload.credit_limit = val;
         
-        // Determine what the user entered for credit used (default to 0 if empty)
+        // The balance for a credit card is simply the credit used amount.
         const enteredUsed = accountForm.credit_used !== '' ? parseFloat(accountForm.credit_used) : 0;
-        const newAvailable = val - enteredUsed;
-
-        if (!accountForm.id) {
-          // For a new card, set balance to (limit - used)
-          payload.balance = newAvailable;
-        } else {
-          // For an edit, check if they explicitly changed the credit used input
-          const oldUsed = (accountForm.old_credit_limit || 0) - (accountForm.old_balance || 0);
-          if (enteredUsed !== oldUsed) {
-            // User manually typed a new credit used amount
-            payload.balance = newAvailable;
-          } else {
-            // They didn't change the credit used field manually, so we adjust it proportionally to the limit change
-            const diff = val - (accountForm.old_credit_limit || 0);
-            payload.balance = (accountForm.old_balance || 0) + diff;
-          }
-        }
+        payload.balance = enteredUsed;
       } else {
         payload.balance = val;
       }
@@ -515,9 +499,9 @@ export const Investments: React.FC = () => {
   const bankCashTotal = totalLiquidBalance(accountsWithBalance);
   const totalNetWorth = investmentsTotal + assetsTotal + bankCashTotal;
   
-  const creditCardUsage = accountsWithBalance
+  const creditCardUsage = Math.abs(accountsWithBalance
     .filter(a => a.account_type === 'Credit Card')
-    .reduce((sum, a) => sum + ((a.credit_limit || 0) - (a.computed_balance || 0)), 0);
+    .reduce((sum, a) => sum + (a.computed_balance || 0), 0));
 
   const currentTabAssets = assets.filter(a => {
     if (activeAssetTab === 'investments') return a.asset_category === 'fd';
