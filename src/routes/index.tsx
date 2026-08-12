@@ -277,7 +277,7 @@ export const Dashboard: React.FC = () => {
     return (
       <div className="flex flex-col gap-4">
         <div className="h-7 w-32 animate-pulse rounded bg-muted/40" />
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3">
           {[1,2,3,4].map(i => <div key={i} className="h-24 animate-pulse bg-card rounded-xl border border-border/50" />)}
         </div>
         <div className="h-60 animate-pulse bg-card rounded-xl border border-border/50" />
@@ -296,7 +296,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-3 sm:gap-4">
+    <div className="flex flex-col gap-2 sm:gap-3">
 
       {/* Mobile-only Header with Greeting and Filter */}
       <div className="md:hidden flex items-center justify-between gap-2">
@@ -369,7 +369,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ── 4 STAT CARDS ── */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {/* Top: Net Worth */}
         <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden">
           <CardContent className="p-4 sm:p-6 h-full flex flex-row items-center justify-between">
@@ -416,10 +416,12 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Bottom: 3 Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          {/* Cash */}
-          <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
+        {/* Bottom Cards Group */}
+        <div className="flex flex-col gap-2 sm:gap-3">
+          {/* Bottom: 3 Cards */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {/* Cash */}
+            <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
             <div className="flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
                 <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#4ADE80]" />
@@ -460,7 +462,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Credit Card Usage */}
         {creditCardUsage > 0 && (
-          <Card className="border border-border/50 shadow-md mt-3 lg:mt-4 relative overflow-hidden flex flex-row justify-between items-center px-4 py-3 sm:px-5">
+          <Card className="border border-border/50 shadow-md relative overflow-hidden flex flex-row justify-between items-center px-4 py-3 sm:px-5">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard className="h-4 w-4 text-primary" />
@@ -472,10 +474,11 @@ export const Dashboard: React.FC = () => {
             </span>
           </Card>
         )}
+        </div>
       </div>
 
       {/* ── CHART ROW: Donut + Bar side by side on desktop, stacked on mobile ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
 
           {/* Spending by Category Donut */}
           <Card className="border border-white/10 bg-gradient-to-br from-[#5C4DFF] to-[#312783] shadow-lg">
