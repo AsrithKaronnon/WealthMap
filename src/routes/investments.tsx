@@ -394,7 +394,9 @@ export const Investments: React.FC = () => {
       id: acc.id,
       name: acc.name,
       account_type: acc.account_type || 'Checking',
-      opening_balance: acc.account_type === 'Credit Card' ? (acc.credit_limit || 0) : (acc.computed_balance || 0)
+      opening_balance: acc.account_type === 'Credit Card' ? (acc.credit_limit || 0) : (acc.computed_balance || 0),
+      old_credit_limit: acc.credit_limit || 0,
+      old_balance: acc.computed_balance || 0
     });
     setIsAccountModalOpen(true);
   };
@@ -414,6 +416,10 @@ export const Investments: React.FC = () => {
         // Only set balance if it's a new account, otherwise we preserve current available credit
         if (!accountForm.id) {
           payload.balance = val;
+        } else {
+          // Adjust the available credit by the difference between the new limit and the old limit
+          const diff = val - (accountForm.old_credit_limit || 0);
+          payload.balance = (accountForm.old_balance || 0) + diff;
         }
       } else {
         payload.balance = val;
