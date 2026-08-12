@@ -36,6 +36,17 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    let logId = null;
+    try {
+      const { data: log } = await supabase
+        .from("automation_logs")
+        .insert({ process_name: "networth_history_cron", status: "started", message: "Started networth history processing" })
+        .select()
+        .single();
+      if (log) logId = log.id;
+    } catch(e) {}
+
+
     // Get all users from user_settings (or just query users directly if auth schema is exposed)
     // using user_settings as a proxy for active users, and get their hidden account settings
     const { data: users, error: usersErr } = await supabase.from('user_settings').select('created_by, hidden_asset_account_ids');
@@ -137,11 +148,35 @@ serve(async (req) => {
       processed++;
     }
 
+    if (logId) {
+      try {
+        await supabase.from("automation_logs").update({
+          status: "completed",
+          records_processed: processed,
+          message: `Successfully processed networth for ${processed} users`
+        }).eq("id", logId);
+      } catch(e) {}
+    }
+
     return new Response(JSON.stringify({ success: true, processed }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error: any) {
+    console.error("Process Failed:", error.message);
+    
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (supabaseUrl && supabaseKey) {
+        await createClient(supabaseUrl, supabaseKey).from("automation_logs").insert({
+          process_name: "networth_history_cron",
+          status: "failed",
+          message: `Error: ${error.message}`
+        });
+      }
+    } catch(e) {}
+
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { 'Content-Type': 'application/json' },
       status: 500,
