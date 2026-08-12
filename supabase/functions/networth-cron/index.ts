@@ -72,12 +72,12 @@ serve(async (req) => {
       const hiddenIds = userSettingsMap.get(userId) || [];
       const { data: accounts } = await supabase
         .from('accounts')
-        .select('id, balance')
+        .select('id, balance, account_type')
         .eq('created_by', userId)
         .eq('is_deleted', false);
         
       const cash = (accounts || [])
-        .filter(a => !hiddenIds.includes(a.id))
+        .filter(a => !hiddenIds.includes(a.id) && a.account_type !== 'Credit Card')
         .reduce((sum, a) => sum + parseFloat(a.balance || 0), 0);
 
       // 2. Calculate Assets
