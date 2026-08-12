@@ -817,8 +817,8 @@ export const Transactions: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-[14px] font-semibold text-foreground/95 leading-tight truncate">{displayMerchant}</span>
                               {!isTransferTx && (
-                                <span className="text-[10px] text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded shrink-0 max-w-[80px] sm:max-w-[120px] truncate border border-border/30">
-                                  {sourceAccName}
+                                <span className="text-[10px] text-muted-foreground/50 shrink-0 max-w-[80px] sm:max-w-[120px] truncate flex items-center gap-1.5">
+                                  <span className="text-[8px] opacity-40">•</span> {sourceAccName}
                                 </span>
                               )}
                               {tx.receipt_url && (
