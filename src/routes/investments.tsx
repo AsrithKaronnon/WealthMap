@@ -715,30 +715,38 @@ export const Investments: React.FC = () => {
             </span>
           </div>
           <div className="flex flex-row justify-between sm:justify-start w-full sm:w-auto mt-3 sm:mt-0 gap-1 sm:gap-3">
-            <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-              <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Bank & Cash</div>
-              <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
-                {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${bankCashTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+            {bankCashTotal > 0 && (
+              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Bank & Cash</div>
+                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+                  {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${bankCashTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                </div>
               </div>
-            </div>
-            <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
+            )}
+            {creditCardUsage > 0 && (
+              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
                 <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Credit Card Usage</div>
                 <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
                   {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${creditCardUsage.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
-            <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-              <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Stocks & MF</div>
-              <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
-                {(loading || isFetchingPrices) ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${investmentsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+            )}
+            {investmentsTotal > 0 && (
+              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Stocks & MF</div>
+                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+                  {(loading || isFetchingPrices) ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${investmentsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                </div>
               </div>
-            </div>
-            <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-              <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Other Assets</div>
-              <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
-                {assetsLoading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${assetsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+            )}
+            {assetsTotal > 0 && (
+              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Other Assets</div>
+                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+                  {assetsLoading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${assetsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
