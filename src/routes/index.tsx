@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
 import { useNavigate } from '@tanstack/react-router';
-import { Sparkles, Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine } from 'lucide-react';
+import { Sparkles, Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine, CreditCard } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { Card, CardContent } from '../components/ui/Card';
 import { ProgressCircle } from '../components/ui/ProgressCircle';
@@ -136,6 +136,11 @@ export const Dashboard: React.FC = () => {
 
   const accountsWithBalance = computeAccountBalances(accounts, transactions).filter(a => !hiddenAccountIds.includes(a.id));
   const totalBalance    = totalLiquidBalance(accountsWithBalance);
+  
+  const creditCardUsage = accountsWithBalance
+    .filter(a => a.account_type === 'Credit Card')
+    .reduce((sum, a) => sum + ((a.credit_limit || 0) - (a.computed_balance || 0)), 0);
+
   const totalInvestments = investments.reduce((s, i) => s + (i.quantity * (livePrices[i.symbol] || 0)), 0);
   const totalAssets = assets.reduce((s, a) => s + parseFloat(a.current_value || 0), 0);
   const totalNetWorth   = totalBalance + totalInvestments + totalAssets;
@@ -452,6 +457,21 @@ export const Dashboard: React.FC = () => {
             </span>
           </Card>
         </div>
+
+        {/* Credit Card Usage */}
+        {creditCardUsage > 0 && (
+          <Card className="border border-border/50 shadow-md mt-3 lg:mt-4 relative overflow-hidden flex flex-row justify-between items-center px-4 py-3 sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <CreditCard className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Credit Card Usage</span>
+            </div>
+            <span className="text-base sm:text-lg font-bold text-foreground leading-none">
+              {fmt(creditCardUsage, currencySymbol)}
+            </span>
+          </Card>
+        )}
       </div>
 
       {/* ── CHART ROW: Donut + Bar side by side on desktop, stacked on mobile ── */}
