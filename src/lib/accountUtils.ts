@@ -50,5 +50,7 @@ export function computeAccountBalances(
  * Returns total liquid balance across all accounts (sum of computed_balance).
  */
 export function totalLiquidBalance(accountsWithBalance: AccountWithBalance[]): number {
-  return accountsWithBalance.reduce((sum, a) => sum + a.computed_balance, 0);
+  return accountsWithBalance
+    .filter(a => a.account_type !== 'Credit Card')
+    .reduce((sum, a) => sum + a.computed_balance, 0);
 }

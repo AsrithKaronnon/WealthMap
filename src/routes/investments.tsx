@@ -5,7 +5,7 @@ import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
 import {
   Plus, TrendingUp, Landmark, Search, Trash2, Edit2, Loader2,
-  Banknote, Building2, Car, Package, Coins, Settings2
+  Banknote, Building2, Car, Package, Coins, Settings2, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -394,7 +394,7 @@ export const Investments: React.FC = () => {
       id: acc.id,
       name: acc.name,
       account_type: acc.account_type || 'Checking',
-      opening_balance: acc.computed_balance || 0
+      opening_balance: acc.account_type === 'Credit Card' ? (acc.credit_limit || 0) : (acc.computed_balance || 0)
     });
     setIsAccountModalOpen(true);
   };
@@ -405,9 +405,19 @@ export const Investments: React.FC = () => {
       const payload: any = {
         name: accountForm.name,
         account_type: accountForm.account_type,
-        balance: parseFloat(accountForm.opening_balance as string) || 0,
         currency_id: SEED.currencies.usd
       };
+      
+      const val = parseFloat(accountForm.opening_balance as string) || 0;
+      if (accountForm.account_type === 'Credit Card') {
+        payload.credit_limit = val;
+        // Only set balance if it's a new account, otherwise we preserve current available credit
+        if (!accountForm.id) {
+          payload.balance = val;
+        }
+      } else {
+        payload.balance = val;
+      }
       
       const { data: settings } = await supabase.from('user_settings').select('base_currency_id').maybeSingle();
       if (settings?.base_currency_id) payload.currency_id = settings.base_currency_id;
@@ -424,6 +434,20 @@ export const Investments: React.FC = () => {
       toast.success('Account saved!');
     } catch (err: any) {
       toast.error('Error saving account: ' + err.message);
+    }
+  };
+
+  const handleResetCreditCard = async (acc: any) => {
+    try {
+      const { error } = await supabase
+        .from('accounts')
+        .update({ balance: acc.credit_limit || 0 })
+        .eq('id', acc.id);
+      if (error) throw error;
+      fetchInvestments();
+      toast.success('Credit card reset to full limit!');
+    } catch (err: any) {
+      toast.error('Failed to reset credit card: ' + err.message);
     }
   };
 
@@ -781,17 +805,32 @@ export const Investments: React.FC = () => {
                         <span className="text-xs text-muted-foreground">{acc.account_type || 'Account'}</span>
                       </div>
                       <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleOpenEditAccount(acc)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors cursor-pointer"><Edit2 className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleOpenEditAccount(acc)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors cursor-pointer" title="Edit"><Edit2 className="h-3.5 w-3.5" /></button>
                         <button onClick={() => handleHideAccount(acc.id)} className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer" title="Hide Account"><Trash2 className="h-3.5 w-3.5" /></button>
+                        {acc.account_type === 'Credit Card' && (
+                          <button onClick={() => handleResetCreditCard(acc)} className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-md transition-colors cursor-pointer" title="Pay Off / Reset"><RefreshCw className="h-3.5 w-3.5" /></button>
+                        )}
                         <span className="ml-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full hidden sm:block">Live</span>
                       </div>
                     </div>
 
-                    <div className="bg-secondary/30 rounded-lg p-2.5 flex justify-between items-center mt-auto">
-                      <span className="text-xs font-semibold text-muted-foreground">Current Balance</span>
-                      <span className={`font-bold ${acc.computed_balance >= 0 ? 'text-foreground' : 'text-rose-500'}`}>
-                        {acc.computed_balance < 0 ? '-' : ''}{currencySymbol}{Math.abs(acc.computed_balance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                      </span>
+                    <div className="bg-secondary/30 rounded-lg p-3 mt-1 flex justify-between items-center">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                          {acc.account_type === 'Credit Card' ? 'Available Credit' : 'Current Balance'}
+                        </span>
+                        <span className={`font-bold text-lg leading-none ${acc.computed_balance >= 0 || acc.account_type === 'Credit Card' ? 'text-foreground' : 'text-rose-500'}`}>
+                          {acc.account_type !== 'Credit Card' && acc.computed_balance < 0 ? '-' : ''}{currencySymbol}{Math.abs(acc.computed_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      {acc.account_type === 'Credit Card' && (
+                        <div className="flex flex-col gap-0.5 text-right">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Limit</span>
+                          <span className="font-bold text-sm leading-none text-muted-foreground">
+                            {currencySymbol}{(acc.credit_limit || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1057,13 +1096,17 @@ export const Investments: React.FC = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
-              Current Balance
+              {accountForm.account_type === 'Credit Card' ? 'Credit Limit' : 'Current Balance'}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
               <input type="number" step="0.01" placeholder="0.00" value={accountForm.opening_balance} onChange={e => setAccountForm({ ...accountForm, opening_balance: e.target.value })} className={`${inp} pl-8`} />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {accountForm.account_type === 'Credit Card' 
+                ? 'Set the total credit limit of this card. Your available credit will update as you spend.' 
+                : 'Update this to match your current real-world balance. Your past transactions will be preserved.'}
+            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border mt-2">
