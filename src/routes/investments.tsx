@@ -385,7 +385,7 @@ export const Investments: React.FC = () => {
 
   // ─── Account Handlers (Bank & Cash) ───────────────────────────────────────
   const handleOpenAddAccount = () => {
-    setAccountForm({ id: '', name: '', account_type: 'Checking', opening_balance: '' });
+    setAccountForm({ id: '', name: '', account_type: 'Checking', opening_balance: '', credit_used: '' });
     setIsAccountModalOpen(true);
   };
 
@@ -395,6 +395,7 @@ export const Investments: React.FC = () => {
       name: acc.name,
       account_type: acc.account_type || 'Checking',
       opening_balance: acc.account_type === 'Credit Card' ? (acc.credit_limit || 0) : (acc.computed_balance || 0),
+      credit_used: acc.account_type === 'Credit Card' ? ((acc.credit_limit || 0) - (acc.computed_balance || 0)) : '',
       old_credit_limit: acc.credit_limit || 0,
       old_balance: acc.computed_balance || 0
     });
@@ -413,13 +414,25 @@ export const Investments: React.FC = () => {
       const val = parseFloat(accountForm.opening_balance as string) || 0;
       if (accountForm.account_type === 'Credit Card') {
         payload.credit_limit = val;
-        // Only set balance if it's a new account, otherwise we preserve current available credit
+        
+        // Determine what the user entered for credit used (default to 0 if empty)
+        const enteredUsed = accountForm.credit_used !== '' ? parseFloat(accountForm.credit_used) : 0;
+        const newAvailable = val - enteredUsed;
+
         if (!accountForm.id) {
-          payload.balance = val;
+          // For a new card, set balance to (limit - used)
+          payload.balance = newAvailable;
         } else {
-          // Adjust the available credit by the difference between the new limit and the old limit
-          const diff = val - (accountForm.old_credit_limit || 0);
-          payload.balance = (accountForm.old_balance || 0) + diff;
+          // For an edit, check if they explicitly changed the credit used input
+          const oldUsed = (accountForm.old_credit_limit || 0) - (accountForm.old_balance || 0);
+          if (enteredUsed !== oldUsed) {
+            // User manually typed a new credit used amount
+            payload.balance = newAvailable;
+          } else {
+            // They didn't change the credit used field manually, so we adjust it proportionally to the limit change
+            const diff = val - (accountForm.old_credit_limit || 0);
+            payload.balance = (accountForm.old_balance || 0) + diff;
+          }
         }
       } else {
         payload.balance = val;
@@ -1111,18 +1124,31 @@ export const Investments: React.FC = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
-              {accountForm.account_type === 'Credit Card' ? 'Credit Limit' : 'Current Balance'}
+              {accountForm.account_type === 'Credit Card' ? 'Total Credit Limit' : 'Current Balance'}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
               <input type="number" step="0.01" placeholder="0.00" value={accountForm.opening_balance} onChange={e => setAccountForm({ ...accountForm, opening_balance: e.target.value })} className={`${inp} pl-8`} />
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {accountForm.account_type === 'Credit Card' 
-                ? 'Set the total credit limit of this card. Your available credit will update as you spend.' 
-                : 'Update this to match your current real-world balance. Your past transactions will be preserved.'}
-            </p>
+            {accountForm.account_type !== 'Credit Card' && (
+              <p className="text-[10px] text-muted-foreground mt-1">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
+            )}
           </div>
+
+          {accountForm.account_type === 'Credit Card' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
+                Credit Used
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
+                <input type="number" step="0.01" placeholder="0.00" value={accountForm.credit_used ?? ''} onChange={e => setAccountForm({ ...accountForm, credit_used: e.target.value })} className={`${inp} pl-8`} />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Enter the total amount you have spent on this card so far.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2 border-t border-border mt-2">
             <Button type="button" variant="outline" onClick={() => setIsAccountModalOpen(false)}>Cancel</Button>
