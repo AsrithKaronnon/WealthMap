@@ -822,7 +822,15 @@ export const Transactions: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none">{catName}</span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-xs text-muted-foreground/70 leading-none">{catName}</span>
+                                {!isTransferTx && (
+                                  <>
+                                    <span className="text-[10px] text-muted-foreground/40">•</span>
+                                    <span className="text-xs text-muted-foreground/70 leading-none">{sourceAccName}</span>
+                                  </>
+                                )}
+                              </div>
                           </div>
                         </div>
                         
