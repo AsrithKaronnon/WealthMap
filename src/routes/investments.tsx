@@ -438,17 +438,24 @@ export const Investments: React.FC = () => {
   };
 
   const handleResetCreditCard = async (acc: any) => {
-    try {
-      const { error } = await supabase
-        .from('accounts')
-        .update({ balance: acc.credit_limit || 0 })
-        .eq('id', acc.id);
-      if (error) throw error;
-      fetchInvestments();
-      toast.success('Credit card reset to full limit!');
-    } catch (err: any) {
-      toast.error('Failed to reset credit card: ' + err.message);
-    }
+    confirm({
+      title: 'Reset Credit Card',
+      description: `Are you sure you want to reset ${acc.name} to its full limit of ${currencySymbol}${acc.credit_limit || 0}?`,
+      confirmText: 'Yes, Reset',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('accounts')
+            .update({ balance: acc.credit_limit || 0 })
+            .eq('id', acc.id);
+          if (error) throw error;
+          fetchInvestments();
+          toast.success('Credit card reset to full limit!');
+        } catch (err: any) {
+          toast.error('Failed to reset credit card: ' + err.message);
+        }
+      }
+    });
   };
 
   const handleHideAccount = (id: string) => {
@@ -807,9 +814,6 @@ export const Investments: React.FC = () => {
                       <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleOpenEditAccount(acc)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors cursor-pointer" title="Edit"><Edit2 className="h-3.5 w-3.5" /></button>
                         <button onClick={() => handleHideAccount(acc.id)} className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer" title="Hide Account"><Trash2 className="h-3.5 w-3.5" /></button>
-                        {acc.account_type === 'Credit Card' && (
-                          <button onClick={() => handleResetCreditCard(acc)} className="p-1.5 text-blue-500 hover:bg-blue-500/10 rounded-md transition-colors cursor-pointer" title="Pay Off / Reset"><RefreshCw className="h-3.5 w-3.5" /></button>
-                        )}
                         <span className="ml-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full hidden sm:block">Live</span>
                       </div>
                     </div>
@@ -824,11 +828,16 @@ export const Investments: React.FC = () => {
                         </span>
                       </div>
                       {acc.account_type === 'Credit Card' && (
-                        <div className="flex flex-col gap-0.5 text-right">
-                          <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Limit</span>
-                          <span className="font-bold text-sm leading-none text-muted-foreground">
-                            {currencySymbol}{(acc.credit_limit || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                          </span>
+                        <div className="flex flex-col gap-1 items-end">
+                          <div className="flex flex-col gap-0.5 text-right">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Limit</span>
+                            <span className="font-bold text-sm leading-none text-muted-foreground">
+                              {currencySymbol}{(acc.credit_limit || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </span>
+                          </div>
+                          <button onClick={() => handleResetCreditCard(acc)} className="mt-0.5 text-[10px] bg-primary/10 text-primary font-bold px-2 py-1 rounded hover:bg-primary/20 transition-colors cursor-pointer">
+                            Pay Off
+                          </button>
                         </div>
                       )}
                     </div>

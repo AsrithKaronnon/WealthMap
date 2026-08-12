@@ -809,28 +809,25 @@ export const Transactions: React.FC = () => {
                         className={`group flex items-center justify-between px-3 py-2 rounded-xl hover:bg-accent/50 transition-colors relative cursor-pointer`}
                         onClick={() => handleOpenEdit(tx)}
                       >
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3.5 flex-1 min-w-0">
                           <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-[15px] shrink-0 ${isIncome ? 'bg-green-500/10 text-green-500' : isTransferTx ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
                             {isIncome ? 'I' : isTransferTx ? 'A' : 'S'}
                           </div>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[14px] font-semibold text-foreground/95 leading-tight">{displayMerchant}</span>
+                          <div className="flex flex-col min-w-0 flex-1 pr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[14px] font-semibold text-foreground/95 leading-tight truncate">{displayMerchant}</span>
+                              {!isTransferTx && (
+                                <span className="text-[10px] text-muted-foreground/60 bg-muted/50 px-1.5 py-0.5 rounded shrink-0 max-w-[80px] sm:max-w-[120px] truncate border border-border/30">
+                                  {sourceAccName}
+                                </span>
+                              )}
                               {tx.receipt_url && (
-                                <div onClick={(e) => { e.stopPropagation(); setSelectedTxForReceipt(tx); }} className="bg-primary/20 p-1 rounded-full text-primary hover:bg-primary/30 transition-colors" title="View Receipt">
+                                <div onClick={(e) => { e.stopPropagation(); setSelectedTxForReceipt(tx); }} className="bg-primary/20 p-1 rounded-full text-primary hover:bg-primary/30 transition-colors shrink-0" title="View Receipt">
                                   <FileText className="h-3 w-3" />
                                 </div>
                               )}
                             </div>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-xs text-muted-foreground/70 leading-none">{catName}</span>
-                                {!isTransferTx && (
-                                  <>
-                                    <span className="text-[10px] text-muted-foreground/40">•</span>
-                                    <span className="text-xs text-muted-foreground/70 leading-none">{sourceAccName}</span>
-                                  </>
-                                )}
-                              </div>
+                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none">{catName}</span>
                           </div>
                         </div>
                         
