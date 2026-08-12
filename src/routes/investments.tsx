@@ -11,7 +11,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
 import { Tabs } from '../components/ui/Tabs';
-import { computeAccountBalances } from '../lib/accountUtils';
+import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
 
 // ─── Asset Tab Definitions ────────────────────────────────────────────────────
 const ALL_ASSET_TABS = [
@@ -512,8 +512,13 @@ export const Investments: React.FC = () => {
   }, [accounts, allTransactions, hiddenAccountIds]);
   const investmentsTotal = investments.reduce((acc, inv) => acc + (inv.quantity * (livePrices[inv.symbol] || 0)), 0);
   const assetsTotal = assets.reduce((acc, a) => acc + parseFloat(a.current_value || 0), 0);
-  const bankCashTotal = accountsWithBalance.reduce((acc, a) => acc + a.computed_balance, 0);
+  const bankCashTotal = totalLiquidBalance(accountsWithBalance);
   const totalNetWorth = investmentsTotal + assetsTotal + bankCashTotal;
+  
+  const creditCardUsage = accountsWithBalance
+    .filter(a => a.account_type === 'Credit Card')
+    .reduce((sum, a) => sum + ((a.credit_limit || 0) - (a.computed_balance || 0)), 0);
+
   const currentTabAssets = assets.filter(a => {
     if (activeAssetTab === 'investments') return a.asset_category === 'fd';
     if (activeAssetTab === 'physical') return ['gold', 'property', 'vehicle', 'other'].includes(a.asset_category);
@@ -732,6 +737,12 @@ export const Investments: React.FC = () => {
                 {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${bankCashTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
               </div>
             </div>
+            <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Credit Card Usage</div>
+                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+                  {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${creditCardUsage.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                </div>
+              </div>
             <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
               <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Stocks & MF</div>
               <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
