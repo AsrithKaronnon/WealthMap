@@ -322,6 +322,7 @@ export const Bills: React.FC = () => {
       {/* FILTER TABS */}
       <div className="w-full sm:w-64 select-none mb-3">
         <Tabs
+          layoutId="billsTabs"
           options={[
             { id: 'upcoming', label: 'Upcoming Bills' },
             { id: 'paid', label: 'Paid Bills' }
@@ -363,7 +364,7 @@ export const Bills: React.FC = () => {
                         {!p.is_loan && p.recurrence_type_id !== SEED.recurrences.one_time && (
                           <button
                             onClick={() => handleToggleActive(p.id, p.is_active)}
-                            className={`sm:hidden px-2 min-h-[28px] rounded-lg text-[9px] font-bold border transition-all cursor-pointer select-none shrink-0 ${
+                            className={`sm:hidden px-3 min-h-[44px] rounded-lg text-[10px] font-bold border transition-all cursor-pointer select-none shrink-0 ${
                               p.is_active
                                 ? 'bg-green-500/10 text-green-500 border-emerald-500/20 hover:bg-green-500/20'
                                 : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'

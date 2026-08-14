@@ -518,6 +518,18 @@ export const Investments: React.FC = () => {
     .filter(a => a.account_type === 'Credit Card')
     .reduce((sum, a) => sum + (a.computed_balance || 0), 0));
 
+  const netWorthBreakdownCount = [
+    bankCashTotal > 0,
+    creditCardUsage > 0,
+    investmentsTotal > 0,
+    assetsTotal > 0,
+  ].filter(Boolean).length;
+  const netWorthBreakdownCols =
+    netWorthBreakdownCount >= 4 ? 'grid-cols-2'
+    : netWorthBreakdownCount === 3 ? 'grid-cols-3'
+    : netWorthBreakdownCount === 2 ? 'grid-cols-2'
+    : 'grid-cols-1';
+
   const currentTabAssets = assets.filter(a => {
     if (activeAssetTab === 'investments') return a.asset_category === 'fd';
     if (activeAssetTab === 'physical') return ['gold', 'property', 'vehicle', 'other'].includes(a.asset_category);
@@ -743,7 +755,7 @@ export const Investments: React.FC = () => {
               )}
             </span>
           </div>
-          <div className="grid grid-cols-2 sm:flex sm:flex-row justify-between sm:justify-start w-full sm:w-auto mt-3 sm:mt-0 gap-2 sm:gap-3">
+          <div className={`grid w-full sm:w-auto mt-3 sm:mt-0 gap-2 sm:gap-3 sm:flex sm:flex-row sm:justify-start ${netWorthBreakdownCols}`}>
             {bankCashTotal > 0 && (
               <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
                 <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Bank & Cash</div>
@@ -783,6 +795,7 @@ export const Investments: React.FC = () => {
       {/* Asset Tab Bar — using same Tabs component as Goals page */}
       <div className="overflow-x-auto pb-1">
         <Tabs
+          layoutId="assetTabs"
           options={ALL_ASSET_TABS.map(t => ({ id: t.id, label: t.label }))}
           activeId={activeAssetTab}
           onChange={setActiveAssetTab}
@@ -973,10 +986,10 @@ export const Investments: React.FC = () => {
           {!formData.symbol ? (
             <div className="flex flex-col gap-2 relative">
               <div className="flex clay-input-wrapper p-1 rounded-lg">
-                <button type="button" onClick={() => { setActiveSearchTab('stocks'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'stocks' ? 'bg-card clay-btn text-foreground' : 'text-muted-foreground'}`}>
+                <button type="button" onClick={() => { setActiveSearchTab('stocks'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 min-h-[44px] md:min-h-0 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'stocks' ? 'bg-card clay-btn text-foreground' : 'text-muted-foreground'}`}>
                   Stocks & ETFs
                 </button>
-                <button type="button" onClick={() => { setActiveSearchTab('mf'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'mf' ? 'bg-card clay-btn text-foreground' : 'text-muted-foreground'}`}>
+                <button type="button" onClick={() => { setActiveSearchTab('mf'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 min-h-[44px] md:min-h-0 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'mf' ? 'bg-card clay-btn text-foreground' : 'text-muted-foreground'}`}>
                   Indian Mutual Funds
                 </button>
               </div>
@@ -987,9 +1000,9 @@ export const Investments: React.FC = () => {
                 {isSearching && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
               </div>
               {searchResults.length > 0 && (
-                <div className="absolute top-[110px] left-0 right-0 bg-popover border border-border rounded-lg shadow-xl z-50 max-h-[250px] overflow-y-auto">
+                <div className="bg-popover border border-border rounded-lg max-h-[200px] overflow-y-auto overscroll-contain">
                   {searchResults.map((res, i) => (
-                    <button key={i} type="button" onClick={() => handleSelectAsset(res)} className="w-full text-left px-3 py-2.5 hover:bg-muted border-b border-border/50 last:border-0 flex flex-col cursor-pointer transition-colors">
+                    <button key={i} type="button" onClick={() => handleSelectAsset(res)} className="w-full text-left px-3 py-2.5 min-h-[44px] hover:bg-muted border-b border-border/50 last:border-0 flex flex-col cursor-pointer transition-colors">
                       <div className="flex justify-between items-center w-full">
                         <span className="font-bold text-sm text-foreground">{activeSearchTab === 'mf' ? res.schemeCode : res.symbol}</span>
                         <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase">{activeSearchTab === 'mf' ? 'MF' : 'Stock'}</span>
@@ -1008,7 +1021,7 @@ export const Investments: React.FC = () => {
                   <span className="font-bold text-sm text-foreground">{formData.symbol}</span>
                   <span className="text-xs text-muted-foreground truncate">{formData.name}</span>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => setFormData({ ...formData, symbol: '', name: '' })} className="shrink-0 cursor-pointer h-7 text-[10px]">Change</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setFormData({ ...formData, symbol: '', name: '' })} className="shrink-0 cursor-pointer md:!h-7 text-[10px]">Change</Button>
               </div>
             </div>
           )}

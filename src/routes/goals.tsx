@@ -456,11 +456,11 @@ export const Goals: React.FC = () => {
                 <div key={goal.id} className="clay rounded-[1.5rem] p-5 flex flex-col gap-4 relative group">
                   
                   {/* Delete / Deposit Buttons (Hidden until hover) */}
-                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setDepositGoal(goal); setDepositAmount(0); }} className="p-2 rounded-full bg-green-500/10 text-green-500" title="Add Money">
+                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setDepositGoal(goal); setDepositAmount(0); }} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-full bg-green-500/10 text-green-500" title="Add Money">
                       <Plus className="h-4 w-4" />
                     </button>
-                    <button onClick={() => handleGoalDelete(goal.id)} className="p-2 rounded-full bg-red-500/10 text-red-500">
+                    <button onClick={() => handleGoalDelete(goal.id)} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-full bg-red-500/10 text-red-500">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -535,10 +535,10 @@ export const Goals: React.FC = () => {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => handleOpenLoanEdit(loan)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors" title="Edit Loan">
+                      <button onClick={() => handleOpenLoanEdit(loan)} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-1 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors" title="Edit Loan">
                         <Edit2 className="h-4 w-4" />
                       </button>
-                      <button onClick={() => handleLoanDelete(loan.id)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer transition-colors" title="Delete Loan">
+                      <button onClick={() => handleLoanDelete(loan.id)} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-1 flex items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer transition-colors" title="Delete Loan">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

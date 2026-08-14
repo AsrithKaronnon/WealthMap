@@ -64,7 +64,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
       <div className="flex flex-col items-center max-w-sm w-full px-6">
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
           <Lock className="h-8 w-8 text-primary" />

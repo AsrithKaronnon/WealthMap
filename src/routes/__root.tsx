@@ -46,6 +46,7 @@ export const RootLayout: React.FC = () => {
   const [connectionBanner, setConnectionBanner] = useState<'offline' | 'online' | null>(
     typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : null
   );
+  const [authKeyboardInset, setAuthKeyboardInset] = useState(0);
 
   const routerState = useRouterState();
   const navigate = useNavigate();
@@ -78,6 +79,28 @@ export const RootLayout: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (session) {
+      setAuthKeyboardInset(0);
+      return;
+    }
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        setAuthKeyboardInset(0);
+        return;
+      }
+      setAuthKeyboardInset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    };
+    update();
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+    };
+  }, [session]);
+
   // Theme Sync
   useEffect(() => {
     const root = window.document.documentElement;
@@ -90,12 +113,24 @@ export const RootLayout: React.FC = () => {
         root.classList.add(t);
       }
     };
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    const syncThemeColor = (mode: 'light' | 'dark') => {
+      document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
+        el.setAttribute('content', mode === 'dark' ? '#0d1117' : '#f5f7fa');
+      });
+    };
     applyTheme(theme);
     window.localStorage.setItem('theme', theme);
+    syncThemeColor(resolved);
 
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme('system');
+      const handleChange = () => {
+        applyTheme('system');
+        syncThemeColor(mediaQuery.matches ? 'dark' : 'light');
+      };
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
@@ -154,7 +189,7 @@ export const RootLayout: React.FC = () => {
     }
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), {
-        redirectTo: window.location.origin + window.location.pathname
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`
       });
       if (error) throw error;
       toast.success('Password reset email sent successfully! Check your inbox.');
@@ -219,7 +254,10 @@ export const RootLayout: React.FC = () => {
   // Auth gate
   if (!session) {
     return (
-      <div className="relative flex h-screen w-screen items-center justify-center bg-background p-4 overflow-y-auto overflow-x-hidden select-none pb-[env(safe-area-inset-bottom,0px)]">
+      <div
+        className="relative flex h-screen w-screen items-center justify-center bg-background p-4 overflow-y-auto overflow-x-hidden select-none pb-[env(safe-area-inset-bottom,0px)]"
+        style={authKeyboardInset ? { paddingBottom: authKeyboardInset } : undefined}
+      >
         {connectionBannerEl}
         <div className="absolute top-[-20%] left-[-10%] h-[600px] w-[600px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-indigo-500/10 blur-[100px] pointer-events-none" />

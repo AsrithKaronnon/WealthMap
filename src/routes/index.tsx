@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
 import { useNavigate } from '@tanstack/react-router';
-import { Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine, CreditCard, Check, Plus } from 'lucide-react';
+import { Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine, CreditCard, Check, Plus, BarChart3 } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { Card, CardContent } from '../components/ui/Card';
 import { ProgressCircle } from '../components/ui/ProgressCircle';
@@ -443,8 +443,8 @@ export const Dashboard: React.FC = () => {
           {/* Bottom: 3 Cards */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {/* Cash */}
-            <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+            <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-3 sm:p-5 gap-1.5 sm:gap-3">
+            <div className="hidden md:flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
                 <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#4ADE80]" />
               </div>
@@ -453,11 +453,12 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(totalBalance, currencySymbol)}
             </span>
+            <span className="md:hidden text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Cash</span>
           </Card>
 
           {/* Income */}
-          <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+          <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-3 sm:p-5 gap-1.5 sm:gap-3">
+            <div className="hidden md:flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                 <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#60A5FA]" />
               </div>
@@ -466,11 +467,12 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(curIncome, currencySymbol)}
             </span>
+            <span className="md:hidden text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Income</span>
           </Card>
 
           {/* Spent */}
-          <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+          <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-3 sm:p-5 gap-1.5 sm:gap-3">
+            <div className="hidden md:flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
                 <ArrowDownToLine className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#F87171]" />
               </div>
@@ -479,6 +481,7 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(curExpense, currencySymbol)}
             </span>
+            <span className="md:hidden text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Spent</span>
           </Card>
         </div>
 
@@ -582,7 +585,7 @@ export const Dashboard: React.FC = () => {
                 {goals.map(g => {
                   const pct = Math.min(100, Math.round(((parseFloat(g.current_amount)||0) / (parseFloat(g.target_amount)||1)) * 100));
                   return (
-                    <div key={g.id} className="flex items-center gap-2 min-w-max">
+                    <div key={g.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
                       <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-green-400">
                         <span className="text-[9px] font-bold text-white">{pct}%</span>
                       </ProgressCircle>
@@ -606,7 +609,7 @@ export const Dashboard: React.FC = () => {
                   const paid  = total - (parseFloat(l.outstanding_amount)||0);
                   const pct   = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
                   return (
-                    <div key={l.id} className="flex items-center gap-2 min-w-max">
+                    <div key={l.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
                       <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-red-400">
                         <span className="text-[9px] font-bold text-white">{pct}%</span>
                       </ProgressCircle>
@@ -625,11 +628,28 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* ── ACTIVITY FEED ── */}
+      <div className="md:hidden grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => navigate({ to: '/bills' })}
+          className="clay-btn min-h-[44px] rounded-xl px-3 text-sm font-semibold text-foreground flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Receipt className="h-4 w-4" /> Bills
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate({ to: '/insights' })}
+          className="clay-btn min-h-[44px] rounded-xl px-3 text-sm font-semibold text-foreground flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <BarChart3 className="h-4 w-4" /> Insights
+        </button>
+      </div>
+
       <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
         <CardContent className="p-0">
           <div className="p-3 sm:p-4 border-b border-white/10 flex justify-between items-center">
             <h3 className="text-sm font-bold text-white">Activity</h3>
-            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money' })} className="text-xs py-1 h-7 border-white/20 text-white hover:bg-white/10">View All</Button>
+            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money' })} className="text-xs py-1 min-h-[44px] md:min-h-0 md:!h-7 border-white/20 text-white hover:bg-white/10">View All</Button>
           </div>
           <div className="p-2">
             {activityFeed.length === 0 ? (
@@ -657,7 +677,7 @@ export const Dashboard: React.FC = () => {
                         {item.isIncome && item.type !== 'bill' ? '+' : '-'}{fmt(item.amount, currencySymbol)}
                       </span>
                       {item.type === 'bill' && (
-                        <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 py-0 border-white/20 text-white hover:bg-white/10" onClick={() => navigate({ to: '/bills' })}>Pay</Button>
+                        <Button size="sm" variant="outline" className="min-h-[44px] h-11 px-3 text-xs md:min-h-0 md:!h-6 md:text-[10px] md:px-2 md:py-0 border-white/20 text-white hover:bg-white/10" onClick={() => navigate({ to: '/bills' })}>Pay</Button>
                       )}
                     </div>
                   </div>
