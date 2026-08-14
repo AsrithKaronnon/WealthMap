@@ -18,11 +18,13 @@ export const Dialog: React.FC<DialogProps> = ({
   size = 'md'
 }) => {
   const sizeClasses = {
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-    xl: "max-w-2xl"
+    sm: "sm:max-w-sm",
+    md: "sm:max-w-md",
+    lg: "sm:max-w-lg",
+    xl: "sm:max-w-2xl"
   };
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  const [keyboardInset, setKeyboardInset] = React.useState(0);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -33,6 +35,43 @@ export const Dialog: React.FC<DialogProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setKeyboardInset(0);
+      return;
+    }
+
+    const updateInset = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        setKeyboardInset(0);
+        return;
+      }
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInset(inset);
+    };
+
+    const scrollFocusedIntoView = () => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return;
+      if (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.tagName !== 'SELECT') return;
+      requestAnimationFrame(() => {
+        active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      });
+    };
+
+    updateInset();
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', updateInset);
+    vv?.addEventListener('scroll', updateInset);
+    window.addEventListener('focusin', scrollFocusedIntoView);
+    return () => {
+      vv?.removeEventListener('resize', updateInset);
+      vv?.removeEventListener('scroll', updateInset);
+      window.removeEventListener('focusin', scrollFocusedIntoView);
+    };
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -48,7 +87,10 @@ export const Dialog: React.FC<DialogProps> = ({
           />
 
           {/* Dialog Container */}
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 pb-4 sm:p-4">
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            style={{ paddingBottom: keyboardInset ? keyboardInset : undefined }}
+          >
             <motion.div
               initial={{ 
                 y: '100%', 
@@ -67,12 +109,16 @@ export const Dialog: React.FC<DialogProps> = ({
               aria-modal="true"
               aria-labelledby={title ? "dialog-title" : undefined}
               className={`
-                w-full sm:${sizeClasses[size]} bg-card text-card-foreground clay border-0
-                rounded-[1.5rem] flex flex-col max-h-[85vh] sm:max-h-[90vh]
+                w-full ${sizeClasses[size]} bg-card text-card-foreground clay
+                rounded-t-[1.5rem] sm:rounded-[1.5rem] flex flex-col max-h-[92vh] sm:max-h-[90vh]
+                pb-[env(safe-area-inset-bottom,12px)]
               `}
             >
+              <div className="sm:hidden flex justify-center pt-2 pb-0 shrink-0" aria-hidden>
+                <span className="h-1 w-10 rounded-full bg-muted-foreground/25" />
+              </div>
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border/40">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0">
                 {title ? (
                   <h3 id="dialog-title" className="card-title">
                     {title}
@@ -80,13 +126,13 @@ export const Dialog: React.FC<DialogProps> = ({
                 ) : <div />}
                 <button
                   onClick={onClose}
-                  className="p-1 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-10 md:w-10 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto flex-1">
+              <div ref={bodyRef} className="px-5 py-4 overflow-y-auto flex-1 overscroll-contain">
                 {children}
               </div>
             </motion.div>

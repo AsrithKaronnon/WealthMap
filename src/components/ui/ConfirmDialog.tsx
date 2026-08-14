@@ -29,13 +29,13 @@ export const ConfirmDialog: React.FC = () => {
           </p>
         )}
         <div className="flex gap-3 justify-end">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} className="flex-1 sm:flex-none min-h-[44px] md:min-h-0">
             {options.cancelText || 'Cancel'}
           </Button>
           <Button 
             variant={options.destructive ? 'danger' : 'primary'} 
             onClick={handleConfirm}
-            className={options.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer' : 'cursor-pointer'}
+            className={`flex-1 sm:flex-none min-h-[44px] md:min-h-0 ${options.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer' : 'cursor-pointer'}`}
           >
             {options.confirmText || 'Confirm'}
           </Button>

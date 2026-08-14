@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { supabase } from '../lib/supabaseClient';
 import { toast } from '../lib/useToastStore';
 import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
 import { parseTextTransaction, parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
 import { 
-  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, PieChart, Camera, UploadCloud, Filter
+  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, Camera, Filter, Check
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
-import { getRelativeDateString } from '../lib/utils';
 import { Skeleton } from '../components/ui/Skeleton';
-import { Tabs } from '../components/ui/Tabs';
+import { mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
 
 export const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -21,23 +21,15 @@ export const Transactions: React.FC = () => {
   const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
   const [incomeCategories, setIncomeCategories] = useState<any[]>([]);
   const [currencySymbol, setCurrencySymbol] = useState('$');
-  
-
-  const [userBudgets, setUserBudgets] = useState<any[]>([]);
-  const [budgetsLoading, setBudgetsLoading] = useState(false);
-  const [budgetsMsg, setBudgetsMsg] = useState('');
-  const [isAddingBudget, setIsAddingBudget] = useState(false);
-  const [newBudgetCategory, setNewBudgetCategory] = useState('');
-  const [newBudgetAmount, setNewBudgetAmount] = useState<number>(0);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'spends' | 'income' | 'budgets'>('all');
-  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'spends' | 'income'>('all');
   
   // Date Filter State
-  const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'year' | 'custom'>('month');
+  const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'last_month' | 'year' | 'custom'>('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
   
   // Quick Add State
   const [quickAddVal, setQuickAddVal] = useState('');
@@ -428,6 +420,17 @@ export const Transactions: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const navigate = useNavigate();
+  const search = useSearch({ from: '/money' });
+
+  useEffect(() => {
+    if (search.add === '1') {
+      handleOpenAdd();
+      navigate({ to: '/money', search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when ?add=1 is present
+  }, [search.add]);
+
   const handleOpenEdit = (tx: any) => {
     setEditingTxId(tx.id);
     setFormData({
@@ -447,51 +450,6 @@ export const Transactions: React.FC = () => {
     setIsModalOpen(true);
   };
 
-
-  const removeBudget = (index: number) => {
-    const newBudgets = userBudgets.filter((_, i) => i !== index);
-    setUserBudgets(newBudgets);
-  };
-  const updateBudgetAmount = (index: number, newAmount: number) => {
-    if(newAmount < 0) return;
-    const newBudgets = [...userBudgets];
-    newBudgets[index].amount = newAmount;
-    setUserBudgets(newBudgets);
-  };
-  const handleAddBudgetSubmit = async () => {
-    if (!newBudgetCategory || newBudgetAmount <= 0) return;
-    const catName = expenseCategories.find(c => c.id === newBudgetCategory)?.name || 'Unknown';
-    setUserBudgets([...userBudgets, { category_id: newBudgetCategory, amount: newBudgetAmount, sort_order: userBudgets.length, name: catName, is_system: true }]);
-    setIsAddingBudget(false);
-    setNewBudgetCategory('');
-    setNewBudgetAmount(0);
-  };
-  const handleSaveBudgets = async () => {
-    setBudgetsLoading(true);
-    try {
-      const promises = userBudgets.map(async (b, idx) => {
-        b.sort_order = idx;
-        if (b.id) {
-          await supabase.from('budgets').update({ amount: b.amount, sort_order: b.sort_order }).eq('id', b.id);
-        } else {
-          await supabase.from('budgets').insert([{ category_id: b.category_id, amount: b.amount, budget_type_id: SEED.recurrences.monthly, sort_order: b.sort_order }]);
-        }
-      });
-      await Promise.all(promises);
-      const { data: currentBudgets } = await supabase.from('budgets').select('id');
-      if (currentBudgets) {
-        const keptIds = userBudgets.map(b => b.id).filter(Boolean);
-        const toDeleteIds = currentBudgets.filter(b => !keptIds.includes(b.id)).map(b => b.id);
-        if (toDeleteIds.length > 0) await supabase.from('budgets').delete().in('id', toDeleteIds);
-      }
-      setBudgetsMsg('Saved!');
-      setTimeout(() => setBudgetsMsg(''), 3000);
-    } catch (err) {
-      toast.error('Error saving budgets');
-    } finally {
-      setBudgetsLoading(false);
-    }
-  };
 
   const handleDelete = (id: string) => {
     confirm({
@@ -551,6 +509,9 @@ export const Transactions: React.FC = () => {
         matchesDate = txDate >= lastWeek;
       } else if (dateFilter === 'month') {
         matchesDate = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+      } else if (dateFilter === 'last_month') {
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        matchesDate = txDate.getMonth() === lastMonthDate.getMonth() && txDate.getFullYear() === lastMonthDate.getFullYear();
       } else if (dateFilter === 'year') {
         matchesDate = txDate.getFullYear() === now.getFullYear();
       } else if (dateFilter === 'custom') {
@@ -578,8 +539,56 @@ export const Transactions: React.FC = () => {
   return (
     <div className="flex flex-col gap-1.5">
       
+      {/* Mobile sticky page header + quick add */}
+      <div className="md:hidden sticky top-0 z-30 -mx-3 bg-background/90 backdrop-blur-md border-b border-border/40">
+        <div className="px-3 h-12 flex items-center justify-between gap-2">
+          <span className="text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">Transactions</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={handleExportCSV} aria-label="Export" className={`${mobileHeaderIconBtn} clay-btn`}>
+              <Download className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleOpenAdd}
+              aria-label="Add transaction"
+              className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <form onSubmit={handleQuickAdd} className="px-3 pb-2 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+          <div className="relative flex-1 flex items-center clay-input-wrapper h-10">
+            <input
+              type="text"
+              placeholder="e.g. Coffee 5"
+              value={quickAddVal}
+              onChange={(e) => setQuickAddVal(e.target.value)}
+              className="compact-input no-focus-ring w-full bg-transparent pl-3 pr-10 py-0 text-sm outline-none h-10"
+              disabled={quickAddLoading}
+            />
+            {isGeminiConfigured() && (
+              <label className="absolute right-0 text-muted-foreground cursor-pointer p-2 h-10 w-10 flex items-center justify-center">
+                <Camera className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleQuickCameraUpload}
+                  disabled={quickAddLoading}
+                />
+              </label>
+            )}
+          </div>
+          <Button type="submit" size="sm" loading={quickAddLoading} className="shrink-0 h-10 cursor-pointer">
+            Add
+          </Button>
+        </form>
+      </div>
+
       {/* HEADER: Title & Actions */}
-      <div className="flex flex-row justify-between items-center w-full select-none">
+      <div className="hidden md:flex flex-row justify-between items-center w-full select-none">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Transactions</h1>
         <div className="flex items-center gap-3 shrink-0">
           <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full clay-btn text-muted-foreground transition-colors cursor-pointer">
@@ -587,7 +596,7 @@ export const Transactions: React.FC = () => {
           </button>
           <button 
             onClick={handleOpenAdd} 
-            className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer shadow-lg shadow-primary/20"
+            className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer clay-btn"
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -613,31 +622,46 @@ export const Transactions: React.FC = () => {
         })}
       </div>
 
-      {/* Date Filter */}
-      <div className="w-full">
+      {/* Search + date filter (filter on the right) */}
+      <div className="flex items-center gap-2 w-full">
+        <div className="flex items-center gap-2 px-3 h-10 clay-input-wrapper flex-1 min-w-0">
+          <Search className="h-3.5 w-3.5 text-muted-foreground opacity-70 shrink-0" />
+          <input 
+            type="text" 
+            placeholder="Search transactions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="compact-input no-focus-ring text-xs font-medium text-foreground bg-transparent border-none h-full focus:outline-none focus:ring-0 flex-1 min-w-0 placeholder:text-muted-foreground py-0"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setDateSheetOpen(true)}
+          aria-label="Filter by date"
+          className="md:hidden shrink-0 clay-input-wrapper h-10 px-3 flex items-center gap-1.5 text-[12px] font-medium text-foreground cursor-pointer max-w-[42%]"
+        >
+          <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="truncate">
+            {dateFilter === 'all' && 'All'}
+            {dateFilter === 'week' && '7 days'}
+            {dateFilter === 'month' && 'Month'}
+            {dateFilter === 'last_month' && 'Last mo'}
+            {dateFilter === 'year' && 'Year'}
+            {dateFilter === 'custom' && 'Custom'}
+          </span>
+        </button>
         <select 
           value={dateFilter}
           onChange={(e: any) => setDateFilter(e.target.value)}
-          className="no-focus-ring text-[13px] font-medium px-4 py-2.5 clay-input-wrapper text-foreground cursor-pointer w-full"
+          className="hidden md:block shrink-0 w-[160px] compact-input no-focus-ring text-[13px] font-medium px-3 clay-input-wrapper text-foreground cursor-pointer"
         >
           <option value="all">All Time</option>
           <option value="week">Last 7 Days</option>
           <option value="month">This Month</option>
+          <option value="last_month">Last Month</option>
           <option value="year">This Year</option>
           <option value="custom">Custom Range</option>
         </select>
-      </div>
-      
-      {/* Search Bar */}
-      <div className="flex items-center gap-2 px-3 h-10 clay-input-wrapper w-full">
-        <Search className="h-3.5 w-3.5 text-muted-foreground opacity-70" />
-        <input 
-          type="text" 
-          placeholder="Search transactions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="no-focus-ring text-xs font-medium text-foreground bg-transparent border-none h-full focus:outline-none focus:ring-0 flex-1 placeholder:text-muted-foreground py-0"
-        />
       </div>
 
       {dateFilter === 'custom' && (
@@ -654,104 +678,7 @@ export const Transactions: React.FC = () => {
       )}
 
       
-      {/* BUDGET TAB RENDER */}
-      {activeTab === 'budgets' && (
-        <Card className="mb-4">
-          <CardContent className="p-4 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">Monthly Budgets</h3>
-              <Button size="sm" onClick={() => setIsAddingBudget(true)} className="flex items-center gap-1 cursor-pointer">
-                <Plus className="h-4 w-4" /> Add Budget
-              </Button>
-            </div>
-            
-            {budgetsLoading ? (
-               <div className="space-y-2">
-                 {[1,2,3].map(i => <div key={i} className="h-16 bg-card border border-border/50 rounded-xl animate-pulse" />)}
-               </div>
-            ) : userBudgets.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-card rounded-xl border border-border/50">
-                  <PieChart className="h-10 w-10 mb-2 opacity-20" />
-                  <p>No budgets set</p>
-                  <p className="text-xs opacity-70">Add a budget to keep your spending in check.</p>
-               </div>
-            ) : (
-              <div className="space-y-3">
-                {userBudgets.map((b, idx) => {
-                   const spent = transactions.filter(t => t.category_id === b.category_id && t.transaction_type_id === SEED.transaction_types.expense).reduce((acc, t) => acc + Number(t.amount), 0);
-                   const pct = Math.min((spent / (b.amount || 1)) * 100, 100);
-                   const isWarning = pct >= 80;
-                   const isDanger = pct >= 100;
-                   return (
-                     <div key={b.id || idx} className="p-4 bg-card rounded-xl border border-border/50">
-                       <div className="flex justify-between items-center mb-2">
-                         <span className="font-semibold">{b.name}</span>
-                         <span className="text-sm font-medium">${spent.toLocaleString()} / ${b.amount.toLocaleString()}</span>
-                       </div>
-                       <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                         <div 
-                           className={`h-full rounded-full ${isDanger ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-primary'}`} 
-                           style={{ width: `${pct}%` }}
-                         />
-                       </div>
-                       <div className="flex justify-between mt-3 text-xs">
-                          <span className="text-muted-foreground">{pct.toFixed(0)}% used</span>
-                          <div className="flex gap-2">
-                            <button onClick={() => updateBudgetAmount(idx, b.amount - 50)} className="text-muted-foreground hover:text-foreground cursor-pointer">-$50</button>
-                            <button onClick={() => updateBudgetAmount(idx, b.amount + 50)} className="text-muted-foreground hover:text-foreground cursor-pointer">+$50</button>
-                            <button onClick={() => removeBudget(idx)} className="text-red-500/70 hover:text-red-500 ml-2 cursor-pointer">Remove</button>
-                          </div>
-                       </div>
-                     </div>
-                   );
-                })}
-                <div className="flex justify-end pt-2">
-                  <Button onClick={handleSaveBudgets} loading={budgetsLoading} className="cursor-pointer">Save Budgets</Button>
-                </div>
-                {budgetsMsg && <p className="text-sm text-primary text-right">{budgetsMsg}</p>}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* NEW BUDGET MODAL */}
-      <Dialog isOpen={isAddingBudget} onClose={() => setIsAddingBudget(false)}>
-        <div className="p-5 flex flex-col gap-4">
-          <h2 className="text-lg font-bold">Add New Budget</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Category</label>
-              <select 
-                value={newBudgetCategory} 
-                onChange={e => setNewBudgetCategory(e.target.value)}
-                className="w-full p-2 bg-background border border-border rounded-lg text-sm"
-              >
-                <option value="">Select category...</option>
-                {expenseCategories.filter(c => !userBudgets.some(b => b.category_id === c.id)).map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1 block">Monthly Limit ($)</label>
-              <input 
-                type="number" 
-                value={newBudgetAmount || ''} 
-                onChange={e => setNewBudgetAmount(Number(e.target.value))}
-                className="w-full p-2 bg-background border border-border rounded-lg text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setIsAddingBudget(false)}>Cancel</Button>
-              <Button onClick={handleAddBudgetSubmit}>Add</Button>
-            </div>
-          </div>
-        </div>
-      </Dialog>
-
       {/* TRANSACTION FEED LISTINGS */}
-      {activeTab !== 'budgets' && (
       <div className="flex flex-col gap-2 pb-6">
         {loading ? (
           <div className="space-y-2 p-2">
@@ -791,7 +718,7 @@ export const Transactions: React.FC = () => {
               <div key={dateLabel} className="flex flex-col gap-1.5">
                 <h3 className="text-[13px] font-medium text-muted-foreground opacity-90 px-1">{dateLabel}</h3>
                 <div className="clay rounded-2xl overflow-hidden flex flex-col p-0">
-                  {txs.map((tx: any, idx: number) => {
+                  {txs.map((tx: any) => {
                     const isIncome = tx.transaction_type_id === SEED.transaction_types.income;
                     const isTransferTx = tx.transaction_type_id === SEED.transaction_types.transfer;
                     const catName = isIncome
@@ -837,7 +764,7 @@ export const Transactions: React.FC = () => {
                           </div>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }} 
-                            className="p-1.5 text-muted-foreground/70 hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                            className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:p-1.5 flex items-center justify-center text-muted-foreground/70 hover:text-foreground hover:bg-accent rounded-lg transition-colors"
                             title="Delete transaction"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -852,7 +779,6 @@ export const Transactions: React.FC = () => {
           })()
         )}
       </div>
-      )}
 
       {/* MANUAL ENTRY DIALOG */}
       <Dialog
@@ -912,8 +838,8 @@ export const Transactions: React.FC = () => {
               <p><strong>Tip:</strong> If you are paying an upcoming bill, pay it directly from the Dashboard to avoid creating duplicate transaction records.</p>
             </div>
             <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1 order-1">
               <label className="text-xs font-bold text-muted-foreground">Type</label>
               <select
                 value={formData.transaction_type_id}
@@ -931,7 +857,33 @@ export const Transactions: React.FC = () => {
                 <option value={SEED.transaction_types.transfer}>Transfer / Adjustment</option>
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 order-2 sm:order-4">
+              <label className="text-xs font-bold text-muted-foreground">
+                Amount ({currencySymbol}) {isTransfer && <span className="font-normal opacity-80">- Use negative for Money Out</span>}
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                step="0.01"
+                required
+                value={formData.amount || ''}
+                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+              />
+            </div>
+            {!isTransfer && (
+              <div className="flex flex-col gap-1 order-3 sm:order-5 sm:col-span-2">
+                <label className="text-xs font-bold text-muted-foreground">Category</label>
+                <select
+                  value={formData.category_id}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="flex flex-col gap-1 order-4 sm:order-2">
               <label className="text-xs font-bold text-muted-foreground">Date</label>
               <input
                 type="date"
@@ -941,10 +893,7 @@ export const Transactions: React.FC = () => {
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 order-5 col-span-2 sm:order-3 sm:col-span-1">
               <label className="text-xs font-bold text-muted-foreground">Description / Source</label>
               <input
                 type="text"
@@ -955,33 +904,7 @@ export const Transactions: React.FC = () => {
                 placeholder="e.g. Starbucks, Salary Paycheck"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">
-                Amount ({currencySymbol}) {isTransfer && <span className="font-normal opacity-80">- Use negative for Money Out</span>}
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={formData.amount || ''}
-                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
-              />
-            </div>
           </div>
-
-          {!isTransfer && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Category</label>
-              <select
-                value={formData.category_id}
-                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
@@ -1044,13 +967,20 @@ export const Transactions: React.FC = () => {
                 <FileText className="h-4 w-4" />
                 Attached Receipt
               </label>
-              <div className="relative group rounded-lg overflow-hidden border border-border/50 bg-background flex justify-center">
+              <div className="relative group rounded-lg overflow-hidden border border-border/50 bg-background flex flex-col items-center">
                 <img src={receiptPreview} alt="Receipt preview" className="max-h-[160px] object-contain" />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="hidden md:flex absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center">
                   <button type="button" onClick={() => { setReceiptFile(null); setReceiptPreview(null); }} className="text-white text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer">
                     <Trash2 className="h-3 w-3" /> Remove
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => { setReceiptFile(null); setReceiptPreview(null); }}
+                  className="md:hidden min-h-[44px] w-full flex items-center justify-center gap-1.5 text-xs font-bold text-destructive bg-destructive/10 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Remove photo
+                </button>
               </div>
             </div>
           )}
@@ -1153,9 +1083,9 @@ export const Transactions: React.FC = () => {
         </div>
       </Dialog>
 
-      {/* QUICK ENTRY BOX (Moved to bottom) */}
-      <div className="mt-8">
-        <Card className="border border-primary/20 bg-primary/5 shadow-xs">
+      {/* QUICK ENTRY BOX (desktop) */}
+      <div className="hidden md:block mt-8">
+        <Card className="bg-primary/5">
           <CardContent className="p-6">
             <form onSubmit={handleQuickAdd} className="flex flex-col md:flex-row gap-4 items-center">
               <div className="flex items-center gap-2 text-primary shrink-0 select-none">
@@ -1193,6 +1123,34 @@ export const Transactions: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog isOpen={dateSheetOpen} onClose={() => setDateSheetOpen(false)} title="Date range">
+        <div className="flex flex-col gap-1">
+          {([
+            { value: 'all', label: 'All Time' },
+            { value: 'week', label: 'Last 7 Days' },
+            { value: 'month', label: 'This Month' },
+            { value: 'last_month', label: 'Last Month' },
+            { value: 'year', label: 'This Year' },
+            { value: 'custom', label: 'Custom Range' },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                setDateFilter(opt.value);
+                setDateSheetOpen(false);
+              }}
+              className={`flex items-center justify-between min-h-[44px] px-3 py-2 rounded-xl text-sm font-medium cursor-pointer ${
+                dateFilter === opt.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
+              }`}
+            >
+              <span>{opt.label}</span>
+              {dateFilter === opt.value && <Check className="h-4 w-4" />}
+            </button>
+          ))}
+        </div>
+      </Dialog>
 
     </div>
   );

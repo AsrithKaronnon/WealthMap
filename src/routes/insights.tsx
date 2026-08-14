@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { Card, CardContent } from '../components/ui/Card';
+import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { TrendingUp, TrendingDown, Target, BarChart3 } from 'lucide-react';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
@@ -20,6 +21,15 @@ export const Insights: React.FC = () => {
   const [allCats, setAllCats] = useState<any[]>([]);
   const [currencySymbol, setCurrencySymbol] = useState('RS');
   const [selectedMonth, setSelectedMonth] = useState<'current' | 'last'>('current');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -143,7 +153,8 @@ export const Insights: React.FC = () => {
   if (loading) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="h-7 w-40 animate-pulse rounded bg-muted/40" />
+        <MobilePageHeader title="Insights" />
+        <div className="hidden md:block h-7 w-40 animate-pulse rounded bg-muted/40" />
         {[1,2,3].map(i => <div key={i} className="h-48 animate-pulse bg-card rounded-xl border border-border/50" />)}
       </div>
     );
@@ -152,8 +163,10 @@ export const Insights: React.FC = () => {
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
 
+      <MobilePageHeader title="Insights" />
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="hidden md:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="page-title text-foreground m-0">Insights</h1>
           <p className="secondary-text mt-0.5">Your financial picture at a glance.</p>
@@ -170,31 +183,46 @@ export const Insights: React.FC = () => {
         </div>
       </div>
 
+      <div className="md:hidden flex clay-input-wrapper p-1 rounded-lg">
+        <button
+          type="button"
+          onClick={() => setSelectedMonth('current')}
+          className={`flex-1 min-h-[44px] rounded-md text-xs font-semibold cursor-pointer ${selectedMonth === 'current' ? 'clay-btn text-foreground' : 'text-muted-foreground'}`}
+        >This Month</button>
+        <button
+          type="button"
+          onClick={() => setSelectedMonth('last')}
+          className={`flex-1 min-h-[44px] rounded-md text-xs font-semibold cursor-pointer ${selectedMonth === 'last' ? 'clay-btn text-foreground' : 'text-muted-foreground'}`}
+        >Last Month</button>
+      </div>
+
       {/* Summary Pills */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <Card>
           <CardContent className="p-3 sm:p-4 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
+            <div className="hidden md:flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Income</span>
               <div className="h-7 w-7 rounded-full bg-green-500/10 flex items-center justify-center">
                 <TrendingUp className="h-3.5 w-3.5 text-green-500" />
               </div>
             </div>
-            <span className="text-lg sm:text-2xl font-bold text-green-500 leading-none">{fmt(curIncome, currencySymbol)}</span>
-            <span className="text-xs text-muted-foreground">{lastIncome > 0 ? (curIncome >= lastIncome ? '↑' : '↓') + ' vs last month' : 'This month'}</span>
+            <span className="text-base md:text-2xl font-bold text-green-500 leading-none">{fmt(curIncome, currencySymbol)}</span>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider md:hidden">Income</span>
+            <span className="hidden md:block text-xs text-muted-foreground">{lastIncome > 0 ? (curIncome >= lastIncome ? '↑' : '↓') + ' vs last month' : 'This month'}</span>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-3 sm:p-4 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
+            <div className="hidden md:flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spent</span>
               <div className="h-7 w-7 rounded-full bg-red-500/10 flex items-center justify-center">
                 <TrendingDown className="h-3.5 w-3.5 text-red-500" />
               </div>
             </div>
-            <span className="text-lg sm:text-2xl font-bold text-foreground leading-none">{fmt(curExpense, currencySymbol)}</span>
-            <span className={`text-xs font-medium ${expenseChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
+            <span className="text-base md:text-2xl font-bold text-foreground leading-none">{fmt(curExpense, currencySymbol)}</span>
+            <span className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider md:hidden">Spent</span>
+            <span className={`hidden md:block text-xs font-medium ${expenseChange > 0 ? 'text-red-500' : 'text-green-500'}`}>
               {lastExpense > 0 ? `${expenseChange > 0 ? '+' : ''}${expenseChange}% vs last` : 'No prior data'}
             </span>
           </CardContent>
@@ -202,14 +230,15 @@ export const Insights: React.FC = () => {
 
         <Card>
           <CardContent className="p-3 sm:p-4 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
+            <div className="hidden md:flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Saved</span>
               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
                 <Target className="h-3.5 w-3.5 text-primary" />
               </div>
             </div>
-            <span className="text-lg sm:text-2xl font-bold text-foreground leading-none">{savingsRate}%</span>
-            <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <span className="text-base md:text-2xl font-bold text-foreground leading-none">{savingsRate}%</span>
+            <span className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider md:hidden">Saved</span>
+            <div className="hidden md:block w-full h-1.5 bg-secondary rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full ${savingsRate >= 20 ? 'bg-green-500' : savingsRate >= 10 ? 'bg-amber-500' : 'bg-red-500'}`}
                 style={{ width: `${Math.min(savingsRate, 100)}%` }}
@@ -245,7 +274,7 @@ export const Insights: React.FC = () => {
                     <Pie data={spendingByCategory} cx="50%" cy="50%" innerRadius="58%" outerRadius="82%" paddingAngle={2} dataKey="value" stroke="none">
                       {spendingByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip contentStyle={ttStyle} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
+                    <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={ttStyle} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -282,7 +311,7 @@ export const Insights: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => fmt(v, currencySymbol)} />
-                  <Tooltip contentStyle={ttStyle} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
+                  <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={ttStyle} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                   <Bar dataKey="Income" fill="#10b981" radius={[4,4,0,0]} maxBarSize={40} />
                   <Bar dataKey="Expenses" fill="#ef4444" radius={[4,4,0,0]} maxBarSize={40} />
@@ -317,7 +346,7 @@ export const Insights: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => fmt(v, currencySymbol)} />
-                  <Tooltip contentStyle={ttStyle} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
+                  <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={ttStyle} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
                   <Area type="monotone" dataKey="Net" stroke="#6366f1" strokeWidth={2} fill="url(#netGrad)" dot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} activeDot={{ r: 5 }} name="Net Savings" />
                 </AreaChart>
               </ResponsiveContainer>

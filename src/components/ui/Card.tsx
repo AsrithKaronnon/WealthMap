@@ -16,7 +16,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(({
     <div
       ref={ref}
       className={`
-        clay border-none text-card-foreground overflow-hidden
+        clay text-card-foreground overflow-hidden
         transition-all duration-300 ease-in-out hover:-translate-y-[2px]
         ${glass ? 'glass' : ''}
         ${className}

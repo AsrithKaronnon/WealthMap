@@ -3,7 +3,7 @@ import { Outlet, Link, useRouterState, useNavigate } from '@tanstack/react-route
 import { 
   Home, Wallet, Target, Settings, 
   ChevronLeft, ChevronRight, LogOut, Sun, Moon, 
-  Monitor, AlertCircle, Plus, TrendingUp
+  Monitor, AlertCircle, TrendingUp, WifiOff, Wifi, X, Eye, EyeOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '../components/ui/Button';
@@ -42,6 +42,11 @@ export const RootLayout: React.FC = () => {
   const [authPhone, setAuthPhone] = useState('');
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [showAuthPassword, setShowAuthPassword] = useState(false);
+  const [connectionBanner, setConnectionBanner] = useState<'offline' | 'online' | null>(
+    typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : null
+  );
+  const [authKeyboardInset, setAuthKeyboardInset] = useState(0);
 
   const routerState = useRouterState();
   const navigate = useNavigate();
@@ -61,6 +66,41 @@ export const RootLayout: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Offline / online banner
+  useEffect(() => {
+    const onOffline = () => setConnectionBanner('offline');
+    const onOnline = () => setConnectionBanner('online');
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    if (!navigator.onLine) setConnectionBanner('offline');
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      setAuthKeyboardInset(0);
+      return;
+    }
+    const update = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        setAuthKeyboardInset(0);
+        return;
+      }
+      setAuthKeyboardInset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    };
+    update();
+    window.visualViewport?.addEventListener('resize', update);
+    window.visualViewport?.addEventListener('scroll', update);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('scroll', update);
+    };
+  }, [session]);
+
   // Theme Sync
   useEffect(() => {
     const root = window.document.documentElement;
@@ -73,12 +113,24 @@ export const RootLayout: React.FC = () => {
         root.classList.add(t);
       }
     };
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    const syncThemeColor = (mode: 'light' | 'dark') => {
+      document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
+        el.setAttribute('content', mode === 'dark' ? '#0d1117' : '#f5f7fa');
+      });
+    };
     applyTheme(theme);
     window.localStorage.setItem('theme', theme);
+    syncThemeColor(resolved);
 
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme('system');
+      const handleChange = () => {
+        applyTheme('system');
+        syncThemeColor(mediaQuery.matches ? 'dark' : 'light');
+      };
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
@@ -137,7 +189,7 @@ export const RootLayout: React.FC = () => {
     }
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(authEmail.trim(), {
-        redirectTo: window.location.origin + window.location.pathname
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`
       });
       if (error) throw error;
       toast.success('Password reset email sent successfully! Check your inbox.');
@@ -168,6 +220,29 @@ export const RootLayout: React.FC = () => {
     return session?.user?.email?.split('@')[0] || 'User';
   };
 
+  const connectionBannerEl = connectionBanner ? (
+    <div className={`fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 px-3 py-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] text-xs font-semibold ${
+      connectionBanner === 'offline'
+        ? 'bg-amber-500 text-amber-950'
+        : 'bg-emerald-500 text-emerald-950'
+    }`}>
+      {connectionBanner === 'offline' ? <WifiOff className="h-3.5 w-3.5 shrink-0" /> : <Wifi className="h-3.5 w-3.5 shrink-0" />}
+      <span className="flex-1 text-center">
+        {connectionBanner === 'offline'
+          ? 'You are offline — data may not be current'
+          : 'Back online'}
+      </span>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => setConnectionBanner(null)}
+        className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  ) : null;
+
   if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -179,13 +254,17 @@ export const RootLayout: React.FC = () => {
   // Auth gate
   if (!session) {
     return (
-      <div className="relative flex h-screen w-screen items-center justify-center bg-background p-4 overflow-hidden select-none">
+      <div
+        className="relative flex h-screen w-screen items-center justify-center bg-background p-4 overflow-y-auto overflow-x-hidden select-none pb-[env(safe-area-inset-bottom,0px)]"
+        style={authKeyboardInset ? { paddingBottom: authKeyboardInset } : undefined}
+      >
+        {connectionBannerEl}
         <div className="absolute top-[-20%] left-[-10%] h-[600px] w-[600px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full bg-indigo-500/10 blur-[100px] pointer-events-none" />
 
-        <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xl relative z-10 glass">
+        <div className="w-full max-w-sm rounded-[1.5rem] bg-card p-6 sm:p-8 relative z-10 clay">
           <div className="flex flex-col items-center justify-center gap-1.5 mb-6 text-center">
-            <div className="h-12 w-12 rounded-full overflow-hidden bg-white shrink-0 shadow-sm border border-border/50 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-full overflow-hidden bg-white shrink-0 clay-btn flex items-center justify-center">
               <img src={logoImage} alt="WealthMap Logo" className="h-full w-full object-cover scale-[1.35]" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">WealthMap</h1>
@@ -210,6 +289,7 @@ export const RootLayout: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="given-name"
                       value={authFirstName}
                       onChange={(e) => setAuthFirstName(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -221,6 +301,7 @@ export const RootLayout: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="family-name"
                       value={authLastName}
                       onChange={(e) => setAuthLastName(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -234,6 +315,7 @@ export const RootLayout: React.FC = () => {
                   <input
                     type="tel"
                     required
+                    autoComplete="tel"
                     value={authPhone}
                     onChange={(e) => setAuthPhone(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -250,6 +332,7 @@ export const RootLayout: React.FC = () => {
               <input
                 type={isSignUp ? 'email' : 'text'}
                 required
+                autoComplete={isSignUp ? 'email' : 'username'}
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 animate-none"
@@ -270,13 +353,24 @@ export const RootLayout: React.FC = () => {
                   </button>
                 )}
               </div>
-              <input
-                type="password"
-                required
-                value={authPassword}
-                onChange={(e) => setAuthPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
+              <div className="relative">
+                <input
+                  type={showAuthPassword ? 'text' : 'password'}
+                  required
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  className="w-full px-3 py-2 pr-11 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+                <button
+                  type="button"
+                  aria-label={showAuthPassword ? 'Hide password' : 'Show password'}
+                  onClick={() => setShowAuthPassword(!showAuthPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground cursor-pointer"
+                >
+                  {showAuthPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <Button type="submit" loading={authLoading} className="w-full mt-2 py-2 cursor-pointer">
@@ -304,7 +398,8 @@ export const RootLayout: React.FC = () => {
 
   // Logged-in App shell
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
+    <div className="flex h-screen w-screen overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] md:pt-0">
+      {connectionBannerEl}
       
       {/* DESKTOP SIDEBAR */}
       <div className="hidden md:flex p-4 pr-0">
@@ -351,14 +446,14 @@ export const RootLayout: React.FC = () => {
         {/* Sidebar footer theme/logout */}
         <div className="px-2 pb-4 pt-4 flex flex-col gap-1">
           {!isSidebarCollapsed ? (
-            <div className="flex bg-muted/30 p-1 rounded-lg">
+            <div className="flex clay-input-wrapper p-1 rounded-lg">
               {(['light', 'dark', 'system'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTheme(t)}
                   className={`
                     flex-1 py-1 text-[10px] font-bold rounded capitalize flex justify-center items-center gap-1 cursor-pointer transition-all duration-150
-                    ${theme === t ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground opacity-70 hover:opacity-100'}
+                    ${theme === t ? 'bg-card text-foreground clay-btn' : 'text-muted-foreground hover:text-foreground opacity-70 hover:opacity-100'}
                   `}
                 >
                   {t === 'light' && <Sun className="h-3 w-3" />}
@@ -394,37 +489,38 @@ export const RootLayout: React.FC = () => {
         {/* Sidebar toggle */}
         <button
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute bottom-[80px] right-[-12px] h-6 w-6 rounded-full border border-border bg-card shadow-xs flex items-center justify-center hover:bg-muted text-muted-foreground z-30 cursor-pointer"
+          className="absolute bottom-[80px] right-[-12px] h-6 w-6 rounded-full clay-btn bg-card flex items-center justify-center hover:bg-muted text-muted-foreground z-30 cursor-pointer"
         >
           {isSidebarCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
         </button>
       </aside>
       </div>
 
-      <div className="md:hidden fixed bottom-4 left-4 right-4 h-[64px] bg-card clay rounded-[2rem] flex items-center justify-between px-2 z-40 select-none w-[calc(100%-32px)]">
+      <nav className="md:hidden mobile-bottom-nav clay fixed bottom-0 left-0 right-0 flex items-stretch px-1 pt-1 pb-[max(6px,env(safe-area-inset-bottom,0px))] z-40 select-none">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = routerState.location.pathname === item.path;
+          const shortLabel = item.path === '/money' ? 'Money' : item.path === '/goals' ? 'Goals' : item.path === '/settings' ? 'More' : item.label;
           return (
             <Link
               key={item.path}
               to={item.path}
               className={`
-                flex flex-col items-center justify-center gap-1 flex-1 h-[44px] cursor-pointer
-                ${isActive ? 'text-primary' : 'text-muted-foreground'}
+                relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 cursor-pointer active:scale-95 transition-transform
+                ${isActive ? 'text-primary' : 'text-foreground/45'}
               `}
             >
-              <Icon className="h-[20px] w-[20px]" />
-              <span className="text-[10px] font-bold">{item.label.split(' ')[0] === 'My' ? item.label.split(' ')[1] : item.label.split(' ')[0]}</span>
+              <span className={`flex items-center justify-center h-7 w-7 rounded-full ${isActive ? 'clay-btn active !rounded-full bg-primary/10' : ''}`}>
+                <Icon className="h-[20px] w-[20px]" />
+              </span>
+              <span className="text-[10px] font-semibold leading-none">{shortLabel}</span>
             </Link>
           );
         })}
-      </div>
-
-      {/* Removed FAB */}
+      </nav>
 
       {/* MAIN CONTENT SECTION */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden pb-[80px] md:pb-0">
+      <div className="flex-1 flex flex-col h-full overflow-hidden pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
         
         {/* HEADER BAR */}
         <header className="hidden md:flex bg-background px-4 sm:px-6 items-center justify-between shrink-0 z-10 select-none border-b border-border/40 h-[64px]">
@@ -446,7 +542,11 @@ export const RootLayout: React.FC = () => {
         </header>
 
         {/* SCROLLABLE MAIN OUTLET */}
-        <main className={`flex-1 overflow-y-auto bg-background/50 px-2.5 sm:px-6 py-4 sm:py-6 ${routerState.location.pathname === '/' ? 'pt-2 sm:pt-6' : ''}`}>
+        <main className={`flex-1 overflow-y-auto overscroll-contain bg-background px-3 md:px-6 ${
+          routerState.location.pathname === '/'
+            ? 'pt-3 pb-4 md:py-6'
+            : 'pt-0 pb-4 md:py-6'
+        }`}>
           <ErrorBoundary>
             <AnimatePresence mode="wait">
               <motion.div

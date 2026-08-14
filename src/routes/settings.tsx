@@ -1,20 +1,25 @@
 // Settings Page
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { useNavigate } from '@tanstack/react-router';
 import { 
   Sun, Moon, Monitor, ShieldCheck, 
   User, 
-  Trash2, ChevronDown, Plus, Sliders, X, ChevronUp, KeyRound
+  Trash2, ChevronDown, Plus, Minus, Sliders, X, ChevronUp, KeyRound,
+  Receipt, BarChart3, LogOut, Coins
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { SEED } from '../lib/supabaseMock';
 import { registerBiometrics } from '../lib/webauthn';
 
 export const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [currency, setCurrency] = useState('USD');
   const [currencies, setCurrencies] = useState<any[]>([]);
+  const [currencyMsg, setCurrencyMsg] = useState('');
+  const [currencyLoading, setCurrencyLoading] = useState(false);
   // App Lock State
   const [appPin, setAppPin] = useState(localStorage.getItem('app_pin') || '');
   const [pinInput, setPinInput] = useState('');
@@ -196,6 +201,32 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleCurrencyChange = async (id: string) => {
+    const prev = currency;
+    setCurrency(id);
+    setCurrencyLoading(true);
+    setCurrencyMsg('');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase.from('user_settings')
+        .update({ base_currency_id: id })
+        .eq('created_by', user.id);
+      if (error) throw error;
+      setCurrencyMsg('Currency saved. Reload pages to see updated symbols.');
+      setTimeout(() => setCurrencyMsg(''), 4000);
+    } catch (err: any) {
+      setCurrency(prev);
+      setCurrencyMsg(`Error: ${err.message || 'Could not save currency'}`);
+    } finally {
+      setCurrencyLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
 
 
   const moveBudget = (index: number, direction: 'up' | 'down') => {
@@ -353,16 +384,23 @@ export const Settings: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6">
       
+      <MobilePageHeader title="Settings" />
+
       {/* Title */}
-      <div className="select-none mb-2">
+      <div className="hidden md:block select-none mb-2">
         <h1 className="text-[22px] font-bold text-foreground tracking-tight">Settings</h1>
       </div>
 
       <div className="flex flex-col gap-2 max-w-2xl">
         {/* PROFILE HEADER CARD */}
-        <div className="clay rounded-[1.5rem] p-4 flex items-center justify-between mb-2">
+        <div
+          className="clay rounded-[1.5rem] p-4 flex items-center justify-between mb-2 cursor-pointer"
+          onClick={() => setActiveSection(activeSection === 'profile' ? null : 'profile')}
+          role="button"
+          aria-label="Open profile settings"
+        >
           <div className="flex items-center gap-4">
             <div className="h-14 w-14 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center overflow-hidden border-2 border-white/10">
                <User className="h-6 w-6 text-white/50" />
@@ -372,7 +410,42 @@ export const Settings: React.FC = () => {
               <span className="text-[12px] text-muted-foreground">{phone || 'user@example.com'}</span>
             </div>
           </div>
-          <ChevronDown className="h-5 w-5 text-muted-foreground/50 -rotate-90" />
+          <ChevronDown className={`h-5 w-5 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'profile' ? '' : '-rotate-90'}`} />
+        </div>
+
+        <div className="md:hidden flex flex-col gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/bills' })}
+            className="clay rounded-[1.2rem] p-4 flex items-center justify-between cursor-pointer min-h-[44px]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                <Receipt className="h-5 w-5 text-amber-500" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[14px] font-semibold text-foreground">Bills</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">Upcoming payments and loans due</span>
+              </div>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/insights' })}
+            className="clay rounded-[1.2rem] p-4 flex items-center justify-between cursor-pointer min-h-[44px]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <BarChart3 className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-[14px] font-semibold text-foreground">Insights</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">Spending, cash flow, and budgets</span>
+              </div>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
+          </button>
         </div>
 
         {/* PROFILE SETTINGS */}
@@ -408,6 +481,7 @@ export const Settings: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="given-name"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -418,6 +492,7 @@ export const Settings: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="family-name"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -427,10 +502,11 @@ export const Settings: React.FC = () => {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-bold text-muted-foreground">Mobile Number</label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
+                    <input
+                      type="tel"
+                      required
+                      autoComplete="tel"
+                      value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
                   />
@@ -457,7 +533,7 @@ export const Settings: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button size="sm" variant="outline" className="h-[28px] text-[10px] px-2 py-0 gap-1 rounded-md cursor-pointer border-white/10" onClick={(e) => { e.stopPropagation(); setIsAddingBudget(true); setActiveSection('budgets'); }}>
+              <Button size="sm" variant="outline" className="h-[28px] md:!h-[28px] text-[10px] px-2 py-0 gap-1 rounded-md cursor-pointer border-white/10" onClick={(e) => { e.stopPropagation(); setIsAddingBudget(true); setActiveSection('budgets'); }}>
                 <Plus className="h-3 w-3" /> Add
               </Button>
               <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'budgets' ? '' : '-rotate-90'}`} />
@@ -556,11 +632,20 @@ export const Settings: React.FC = () => {
                             <span className="text-[10px] text-muted-foreground">Monthly Limit</span>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              aria-label="Decrease budget by 50"
+                              onClick={() => updateBudgetAmount(index, Math.max(0, (b.amount || 0) - 50))}
+                              className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
                             <span className="text-xs text-muted-foreground select-none font-semibold">{activeCurrencySymbol}</span>
                             <input
                               type="number"
+                              inputMode="numeric"
                               step="0.01"
                               min="0"
                               placeholder="0.00"
@@ -568,6 +653,14 @@ export const Settings: React.FC = () => {
                               onChange={(e) => updateBudgetAmount(index, parseFloat(e.target.value) || 0)}
                               className="w-[100px] px-2 py-1.5 rounded-lg border border-border bg-muted/20 text-[13px] font-bold font-mono focus:outline-none focus:ring-2 focus:ring-primary/45 text-right"
                             />
+                            <button
+                              type="button"
+                              aria-label="Increase budget by 50"
+                              onClick={() => updateBudgetAmount(index, (b.amount || 0) + 50)}
+                              className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
                           </div>
                           <button type="button" onClick={() => removeBudget(index)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer" aria-label="Remove Budget">
                             <Trash2 className="h-4 w-4" />
@@ -584,6 +677,50 @@ export const Settings: React.FC = () => {
                   </Button>
                 </div>
               </form>
+            </div>
+          )}
+        </div>
+
+        {/* CURRENCY */}
+        <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
+          <div onClick={() => setActiveSection(activeSection === 'currency' ? null : 'currency')} className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50 min-h-[44px]">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-teal-500/10 flex items-center justify-center shrink-0">
+                <Coins className="h-5 w-5 text-teal-500" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[14px] font-semibold text-foreground">Currency</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">
+                  {currencies.find((c: any) => c.id === currency)?.code || currencies.find((c: any) => c.id === currency)?.symbol || 'Display currency'}
+                </span>
+              </div>
+            </div>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'currency' ? '' : '-rotate-90'}`} />
+          </div>
+          {activeSection === 'currency' && (
+            <div className="p-4 border-t border-border/50 bg-muted/10 flex flex-col gap-3">
+              {currencyMsg && (
+                <div className={`p-3 rounded-lg border text-xs font-semibold ${
+                  currencyMsg.startsWith('Error')
+                    ? 'bg-destructive/10 border-destructive/25 text-destructive'
+                    : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'
+                }`}>
+                  {currencyMsg}
+                </div>
+              )}
+              <select
+                value={currency}
+                disabled={currencyLoading}
+                onChange={(e) => handleCurrencyChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
+              >
+                {currencies.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `${c.code} (${c.symbol})` : c.symbol || c.name || c.id}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">This updates the symbol used across the app. It does not convert historical amounts.</p>
             </div>
           )}
         </div>
@@ -773,6 +910,7 @@ export const Settings: React.FC = () => {
                     <input
                       type="password"
                       required
+                      autoComplete="current-password"
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -786,6 +924,7 @@ export const Settings: React.FC = () => {
                       <input
                         type="password"
                         required
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -797,6 +936,7 @@ export const Settings: React.FC = () => {
                       <input
                         type="password"
                         required
+                        autoComplete="new-password"
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -813,6 +953,17 @@ export const Settings: React.FC = () => {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="md:hidden clay rounded-[1.2rem] p-4 flex items-center gap-4 cursor-pointer min-h-[44px] text-destructive"
+        >
+          <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+            <LogOut className="h-5 w-5" />
+          </div>
+          <span className="text-[14px] font-semibold">Log Out</span>
+        </button>
 
       </div>
     </div>

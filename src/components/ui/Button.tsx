@@ -16,12 +16,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   className = '',
   ...props
 }, ref) => {
-  const baseStyle = "inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer active:scale-[0.98] h-[40px] [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0";
+  const baseStyle = "inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer active:scale-[0.98] min-h-[44px] h-11 md:min-h-0 md:h-[40px] [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0";
   
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90 clay-btn",
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 clay-btn",
-    outline: "border-2 border-border bg-background text-foreground hover:bg-secondary hover:text-secondary-foreground rounded-[calc(var(--radius)-0.25rem)]",
+    outline: "border-2 border-border bg-background text-foreground hover:bg-secondary hover:text-secondary-foreground clay-btn",
     ghost: "bg-transparent text-foreground hover:bg-secondary hover:text-secondary-foreground rounded-[calc(var(--radius)-0.25rem)]",
     danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90 clay-btn"
   };

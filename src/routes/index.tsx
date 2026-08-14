@@ -1,21 +1,36 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
 import { useNavigate } from '@tanstack/react-router';
-import { Sparkles, Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine, CreditCard } from 'lucide-react';
+import { Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine, CreditCard, Check, Plus, BarChart3 } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { Card, CardContent } from '../components/ui/Card';
 import { ProgressCircle } from '../components/ui/ProgressCircle';
 import { Button } from '../components/ui/Button';
+import { Dialog } from '../components/ui/Dialog';
 import { PinSetupPrompt } from '../components/PinSetupPrompt';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
 
+const TIME_FILTERS = [
+  { value: 'current_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'last_3_months', label: 'Last 3 Months' },
+  { value: 'last_1_year', label: 'Last 1 Year' },
+  { value: 'all', label: 'All Time' },
+] as const;
+
 // Exact amounts, no 'k' abbreviation
 const fmt = (n: number, sym: string) =>
   `${sym}${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+const greetingFor = (name: string) => {
+  const hrs = new Date().getHours();
+  const g = hrs < 12 ? 'Good morning' : hrs < 18 ? 'Good afternoon' : 'Good evening';
+  return `${g}, ${name.split(' ')[0]}!`;
+};
 
 export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -36,8 +51,31 @@ export const Dashboard: React.FC = () => {
   
   // Time filter state
   const [timeFilter, setTimeFilter] = useState<'current_month' | 'last_month' | 'last_3_months' | 'last_1_year' | 'all'>('current_month');
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const navigate = useNavigate();
+  const greetingRef = useRef<HTMLSpanElement>(null);
+  const greetingText = greetingFor(userName);
+
+  useLayoutEffect(() => {
+    const el = greetingRef.current;
+    if (!el) return;
+    let size = 16;
+    el.style.fontSize = `${size}px`;
+    while (el.scrollWidth > el.clientWidth && size > 11) {
+      size -= 0.5;
+      el.style.fontSize = `${size}px`;
+    }
+  }, [greetingText, loading]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -288,51 +326,35 @@ export const Dashboard: React.FC = () => {
 
   const hasData = transactions.length > 0;
 
-  const getGreeting = () => {
-    const hrs = new Date().getHours();
-    if (hrs < 12) return 'Good morning';
-    if (hrs < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
 
       {/* Mobile-only Header with Greeting and Filter */}
-      <div className="md:hidden flex items-center justify-between gap-2">
-        <div className="flex flex-col justify-center min-w-0 flex-1">
-          <span className="text-[16px] font-semibold text-foreground truncate leading-tight">
-            {getGreeting()}, {userName.split(' ')[0]}!
-          </span>
-          <span className="text-[13px] text-muted-foreground truncate leading-tight mt-0.5">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="relative flex items-center justify-center h-8 px-2 rounded-lg bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0">
-            <Filter className="h-3.5 w-3.5 mr-1.5" />
-          <span className="text-[11px] font-bold">
-            {timeFilter === 'current_month' && 'This Month'}
-            {timeFilter === 'last_month' && 'Last Month'}
-            {timeFilter === 'last_3_months' && 'Last 3 Months'}
-            {timeFilter === 'last_1_year' && 'Last 1 Year'}
-            {timeFilter === 'all' && 'All Time'}
-          </span>
-          <select 
-            value={timeFilter}
-            onChange={(e) => setTimeFilter(e.target.value as any)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            title="Filter by time"
+      <div className="md:hidden sticky top-0 z-30 -mx-3 px-3 h-12 flex items-center gap-2 bg-background/90 backdrop-blur-md border-b border-border/40">
+        <span
+          ref={greetingRef}
+          className="min-w-0 flex-1 font-semibold text-foreground whitespace-nowrap leading-none"
+        >
+          {greetingText}
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setFilterSheetOpen(true)}
+            aria-label="Filter time period"
+            className="flex items-center justify-center h-9 w-9 rounded-xl clay-btn text-muted-foreground cursor-pointer"
           >
-            <option value="current_month">This Month</option>
-            <option value="last_month">Last Month</option>
-            <option value="last_3_months">Last 3 Months</option>
-            <option value="last_1_year">Last 1 Year</option>
-            <option value="all">All Time</option>
-          </select>
-          </div>
-          <NotificationsBell />
+            <Filter className="h-4 w-4" />
+          </button>
+          <NotificationsBell className="!h-9 !w-9" />
+          <button
+            type="button"
+            aria-label="Add transaction"
+            onClick={() => navigate({ to: '/money', search: { add: '1' } })}
+            className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -371,9 +393,9 @@ export const Dashboard: React.FC = () => {
       {/* ── 4 STAT CARDS ── */}
       <div className="flex flex-col gap-2">
         {/* Top: Net Worth */}
-        <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden">
-          <CardContent className="p-4 sm:p-6 h-full flex flex-row items-center justify-between">
-            <div className="flex flex-col gap-2 z-10 w-1/2 sm:w-1/3">
+        <Card className="transition-all duration-200 relative overflow-hidden">
+          <CardContent className="p-4 sm:p-6 min-h-[120px] sm:min-h-[140px] h-full flex flex-row items-center justify-between relative">
+            <div className="flex flex-col gap-2 relative z-20 w-1/2 sm:w-1/3">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth</span>
               {isFetchingPrices ? (
                 <div className="flex items-center gap-2">
@@ -399,7 +421,7 @@ export const Dashboard: React.FC = () => {
                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/20" />
               </div>
             ) : (
-              <div className="h-full w-1/2 sm:w-2/3 absolute right-0 bottom-0 pointer-events-none opacity-80 pt-4 z-0">
+              <div className="h-[70%] max-h-[70%] sm:h-full sm:max-h-none w-1/2 sm:w-2/3 absolute right-0 bottom-0 pointer-events-none opacity-80 pt-4 z-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={nwChartData}>
                     <defs>
@@ -421,8 +443,8 @@ export const Dashboard: React.FC = () => {
           {/* Bottom: 3 Cards */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {/* Cash */}
-            <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+            <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-3 sm:p-5 gap-1.5 sm:gap-3">
+            <div className="hidden md:flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
                 <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#4ADE80]" />
               </div>
@@ -431,11 +453,12 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(totalBalance, currencySymbol)}
             </span>
+            <span className="md:hidden text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Cash</span>
           </Card>
 
           {/* Income */}
-          <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+          <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-3 sm:p-5 gap-1.5 sm:gap-3">
+            <div className="hidden md:flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
                 <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#60A5FA]" />
               </div>
@@ -444,11 +467,12 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(curIncome, currencySymbol)}
             </span>
+            <span className="md:hidden text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Income</span>
           </Card>
 
           {/* Spent */}
-          <Card className="border border-border/50 shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-4 sm:p-5 gap-2 sm:gap-3">
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+          <Card className="transition-all duration-200 relative overflow-hidden flex flex-col justify-center items-center text-center p-3 sm:p-5 gap-1.5 sm:gap-3">
+            <div className="hidden md:flex items-center justify-center gap-2 sm:gap-3">
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
                 <ArrowDownToLine className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#F87171]" />
               </div>
@@ -457,12 +481,13 @@ export const Dashboard: React.FC = () => {
             <span className="text-lg sm:text-2xl font-bold text-foreground leading-none tracking-tight text-center">
               {fmt(curExpense, currencySymbol)}
             </span>
+            <span className="md:hidden text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Spent</span>
           </Card>
         </div>
 
         {/* Credit Card Usage */}
         {creditCardUsage > 0 && (
-          <Card className="border border-border/50 shadow-md relative overflow-hidden flex flex-row justify-between items-center px-4 py-3 sm:px-5">
+          <Card className="relative overflow-hidden flex flex-row justify-between items-center px-4 py-3 sm:px-5">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard className="h-4 w-4 text-primary" />
@@ -481,7 +506,7 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
 
           {/* Spending by Category Donut */}
-          <Card className="border border-white/10 bg-gradient-to-br from-[#5C4DFF] to-[#312783] shadow-lg">
+          <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -502,7 +527,7 @@ export const Dashboard: React.FC = () => {
                         <Pie data={spendByCategory} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
                           {spendByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
+                        <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -521,7 +546,7 @@ export const Dashboard: React.FC = () => {
           </Card>
 
           {/* 6-Month Income vs Expenses Line Chart */}
-          <Card className="border border-white/10 bg-gradient-to-br from-[#5C4DFF] to-[#312783] shadow-lg">
+          <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
             <CardContent className="p-4">
               <div className="mb-3">
                 <h3 className="text-sm font-bold text-white">Income vs Expenses</h3>
@@ -538,7 +563,7 @@ export const Dashboard: React.FC = () => {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" opacity={0.1} />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.7)' }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.7)' }} tickFormatter={v => fmt(v, currencySymbol)} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
+                      <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
                       <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: 'white' }} />
                       <Line type="monotone" dataKey="Income" stroke="#34d399" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#34d399' }} activeDot={{ r: 5 }} />
                       <Line type="monotone" dataKey="Expenses" stroke="#f87171" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#f87171' }} activeDot={{ r: 5 }} />
@@ -554,13 +579,13 @@ export const Dashboard: React.FC = () => {
       {(goals.length > 0 || loans.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {goals.length > 0 && (
-            <Card className="border border-white/10 bg-gradient-to-br from-[#5C4DFF] to-[#312783] shadow-lg">
+            <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783] relative">
               <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
                 <div className="text-xs font-bold text-white/70 uppercase whitespace-nowrap pr-2 border-r border-white/20 shrink-0">Goals</div>
                 {goals.map(g => {
                   const pct = Math.min(100, Math.round(((parseFloat(g.current_amount)||0) / (parseFloat(g.target_amount)||1)) * 100));
                   return (
-                    <div key={g.id} className="flex items-center gap-2 min-w-max">
+                    <div key={g.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
                       <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-green-400">
                         <span className="text-[9px] font-bold text-white">{pct}%</span>
                       </ProgressCircle>
@@ -572,10 +597,11 @@ export const Dashboard: React.FC = () => {
                   );
                 })}
               </CardContent>
+              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#312783] to-transparent rounded-r-xl" />
             </Card>
           )}
           {loans.length > 0 && (
-            <Card className="border border-white/10 bg-gradient-to-br from-[#5C4DFF] to-[#312783] shadow-lg">
+            <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783] relative">
               <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
                 <div className="text-xs font-bold text-white/70 uppercase whitespace-nowrap pr-2 border-r border-white/20 shrink-0">Loans</div>
                 {loans.map(l => {
@@ -583,7 +609,7 @@ export const Dashboard: React.FC = () => {
                   const paid  = total - (parseFloat(l.outstanding_amount)||0);
                   const pct   = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
                   return (
-                    <div key={l.id} className="flex items-center gap-2 min-w-max">
+                    <div key={l.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
                       <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-red-400">
                         <span className="text-[9px] font-bold text-white">{pct}%</span>
                       </ProgressCircle>
@@ -595,17 +621,35 @@ export const Dashboard: React.FC = () => {
                   );
                 })}
               </CardContent>
+              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#312783] to-transparent rounded-r-xl" />
             </Card>
           )}
         </div>
       )}
 
       {/* ── ACTIVITY FEED ── */}
-      <Card className="border border-white/10 bg-gradient-to-br from-[#5C4DFF] to-[#312783] shadow-lg">
+      <div className="md:hidden grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => navigate({ to: '/bills' })}
+          className="clay-btn min-h-[44px] rounded-xl px-3 text-sm font-semibold text-foreground flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Receipt className="h-4 w-4" /> Bills
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate({ to: '/insights' })}
+          className="clay-btn min-h-[44px] rounded-xl px-3 text-sm font-semibold text-foreground flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <BarChart3 className="h-4 w-4" /> Insights
+        </button>
+      </div>
+
+      <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
         <CardContent className="p-0">
           <div className="p-3 sm:p-4 border-b border-white/10 flex justify-between items-center">
             <h3 className="text-sm font-bold text-white">Activity</h3>
-            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money' })} className="text-xs py-1 h-7 border-white/20 text-white hover:bg-white/10">View All</Button>
+            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money' })} className="text-xs py-1 min-h-[44px] md:min-h-0 md:!h-7 border-white/20 text-white hover:bg-white/10">View All</Button>
           </div>
           <div className="p-2">
             {activityFeed.length === 0 ? (
@@ -618,7 +662,7 @@ export const Dashboard: React.FC = () => {
             ) : (
               <div className="flex flex-col">
                 {activityFeed.map(item => (
-                  <div key={item.id} className="flex items-center justify-between px-2 py-2.5 hover:bg-white/5 rounded-xl transition-colors">
+                  <div key={item.id} className="flex items-center justify-between px-2 py-2.5 min-h-[44px] hover:bg-white/5 rounded-xl transition-colors">
                     <div className="flex items-center gap-2.5 flex-1 min-w-0 mr-2">
                       <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${item.type === 'bill' ? 'bg-amber-500/20 text-amber-300' : item.isIncome ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
                         {item.type === 'bill' ? <Receipt className="h-3.5 w-3.5" /> : item.isIncome ? <TrendingUp className="h-3.5 w-3.5" /> : <Wallet className="h-3.5 w-3.5" />}
@@ -633,7 +677,7 @@ export const Dashboard: React.FC = () => {
                         {item.isIncome && item.type !== 'bill' ? '+' : '-'}{fmt(item.amount, currencySymbol)}
                       </span>
                       {item.type === 'bill' && (
-                        <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 py-0 border-white/20 text-white hover:bg-white/10" onClick={() => navigate({ to: '/bills' })}>Pay</Button>
+                        <Button size="sm" variant="outline" className="min-h-[44px] h-11 px-3 text-xs md:min-h-0 md:!h-6 md:text-[10px] md:px-2 md:py-0 border-white/20 text-white hover:bg-white/10" onClick={() => navigate({ to: '/bills' })}>Pay</Button>
                       )}
                     </div>
                   </div>
@@ -645,6 +689,27 @@ export const Dashboard: React.FC = () => {
       </Card>
       
       <PinSetupPrompt />
+
+      <Dialog isOpen={filterSheetOpen} onClose={() => setFilterSheetOpen(false)} title="Time period">
+        <div className="flex flex-col gap-1">
+          {TIME_FILTERS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                setTimeFilter(opt.value);
+                setFilterSheetOpen(false);
+              }}
+              className={`flex items-center justify-between min-h-[44px] px-3 py-2 rounded-xl text-sm font-medium cursor-pointer ${
+                timeFilter === opt.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'
+              }`}
+            >
+              <span>{opt.label}</span>
+              {timeFilter === opt.value && <Check className="h-4 w-4" />}
+            </button>
+          ))}
+        </div>
+      </Dialog>
     </div>
   );
 };

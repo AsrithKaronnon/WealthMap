@@ -3,7 +3,7 @@ import { Bell, Check, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from '@tanstack/react-router';
 
-export function NotificationsBell() {
+export function NotificationsBell({ className = '' }: { className?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -76,7 +76,7 @@ export function NotificationsBell() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative h-8 w-8 md:h-10 md:w-10 flex items-center justify-center rounded-xl bg-card md:bg-background text-foreground transition-all cursor-pointer shrink-0 clay-btn"
+        className={`relative h-11 w-11 md:h-10 md:w-10 flex items-center justify-center rounded-xl bg-card md:bg-background text-foreground transition-all cursor-pointer shrink-0 clay-btn ${className}`}
       >
         <Bell className="h-[16px] w-[16px] md:h-[18px] md:w-[18px]" />
         {unreadCount > 0 && (
