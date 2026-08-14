@@ -71,6 +71,9 @@ export const Investments: React.FC = () => {
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [hiddenAccountIds, setHiddenAccountIds] = useState<string[]>([]);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isPayoffModalOpen, setIsPayoffModalOpen] = useState(false);
+  const [payoffAccount, setPayoffAccount] = useState<any>(null);
+  const [payoffAmount, setPayoffAmount] = useState<string>('');
   const [accountForm, setAccountForm] = useState<any>({
     id: '', name: '', account_type: 'Checking', opening_balance: ''
   });
@@ -440,25 +443,36 @@ export const Investments: React.FC = () => {
     }
   };
 
-  const handleResetCreditCard = async (acc: any) => {
-    confirm({
-      title: 'Reset Credit Card',
-      description: `Are you sure you want to reset ${acc.name} to its full limit of ${currencySymbol}${acc.credit_limit || 0}?`,
-      confirmText: 'Yes, Reset',
-      onConfirm: async () => {
-        try {
-          const { error } = await supabase
-            .from('accounts')
-            .update({ balance: acc.credit_limit || 0 })
-            .eq('id', acc.id);
-          if (error) throw error;
-          fetchInvestments();
-          toast.success('Credit card reset to full limit!');
-        } catch (err: any) {
-          toast.error('Failed to reset credit card: ' + err.message);
-        }
-      }
-    });
+  const handleOpenPayoff = (acc: any) => {
+    setPayoffAccount(acc);
+    setPayoffAmount('');
+    setIsPayoffModalOpen(true);
+  };
+
+  const handlePayoffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payoffAccount) return;
+    try {
+      const amount = parseFloat(payoffAmount) || 0;
+      if (amount <= 0) return toast.error('Enter a valid amount');
+      
+      const currentBalance = payoffAccount.computed_balance || 0;
+      let newBalance = currentBalance - amount;
+      if (newBalance < 0) newBalance = 0; // Don't let it go below 0
+
+      const { error } = await supabase
+        .from('accounts')
+        .update({ balance: newBalance })
+        .eq('id', payoffAccount.id);
+        
+      if (error) throw error;
+      
+      fetchInvestments();
+      toast.success(`Successfully paid off ${currencySymbol}${amount.toLocaleString('en-IN')}`);
+      setIsPayoffModalOpen(false);
+    } catch (err: any) {
+      toast.error('Failed to pay off: ' + err.message);
+    }
   };
 
   const handleHideAccount = (id: string) => {
@@ -857,7 +871,7 @@ export const Investments: React.FC = () => {
                               {currencySymbol}{(acc.credit_limit || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </span>
                           </div>
-                          <button onClick={() => handleResetCreditCard(acc)} className="mt-0.5 text-[10px] bg-primary/10 text-primary font-bold px-2 py-1 rounded hover:bg-primary/20 transition-colors cursor-pointer">
+                          <button onClick={() => handleOpenPayoff(acc)} className="mt-0.5 text-[10px] bg-primary/10 text-primary font-bold px-2 py-1 rounded hover:bg-primary/20 transition-colors cursor-pointer">
                             Pay Off
                           </button>
                         </div>
@@ -1108,6 +1122,47 @@ export const Investments: React.FC = () => {
 
 
       {/* ── ACCOUNT Add/Edit Modal (Bank & Cash) ── */}
+      {/* 💸 Pay Off Modal */}
+      <Dialog isOpen={isPayoffModalOpen} onClose={() => setIsPayoffModalOpen(false)} title="Pay Off Credit Card">
+        <form onSubmit={handlePayoffSubmit} className="flex flex-col gap-4 mt-2">
+          <p className="text-sm text-muted-foreground">
+            Current Usage: <span className="font-bold text-foreground">{currencySymbol}{(payoffAccount?.computed_balance || 0).toLocaleString('en-IN')}</span>
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
+              Payoff Amount
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
+              <input 
+                autoFocus 
+                required 
+                type="number" 
+                step="0.01" 
+                min="0.01"
+                placeholder="0.00" 
+                value={payoffAmount} 
+                onChange={e => setPayoffAmount(e.target.value)} 
+                className={`${inp} pl-8`} 
+              />
+            </div>
+            <div className="flex justify-end mt-1">
+              <button 
+                type="button" 
+                className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-1 rounded hover:bg-primary/20 transition-colors cursor-pointer"
+                onClick={() => setPayoffAmount((payoffAccount?.computed_balance || 0).toString())}
+              >
+                100% (Pay in Full)
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t border-border mt-2">
+            <Button type="button" variant="outline" onClick={() => setIsPayoffModalOpen(false)}>Cancel</Button>
+            <Button type="submit">Confirm Payoff</Button>
+          </div>
+        </form>
+      </Dialog>
+
       <Dialog isOpen={isAccountModalOpen} onClose={() => setIsAccountModalOpen(false)} title={accountForm.id ? 'Edit Account' : 'Add New Account'}>
         <form onSubmit={handleSaveAccount} className="flex flex-col gap-4 mt-2">
           <div className="flex flex-col gap-1.5">
