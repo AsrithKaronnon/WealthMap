@@ -330,7 +330,7 @@ export const Dashboard: React.FC = () => {
     <div className="flex flex-col gap-2 sm:gap-3">
 
       {/* Mobile-only Header with Greeting and Filter */}
-      <div className="md:hidden sticky top-0 z-30 -mx-3 px-3 h-12 flex items-center gap-2 bg-background/90 backdrop-blur-md border-b border-border/40">
+      <div className="md:hidden sticky -top-3 z-30 -mx-3 px-3 pb-3 -mt-3 mb-2 flex items-center gap-2 bg-background/95 backdrop-blur-md border-b border-border/40" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
         <span
           ref={greetingRef}
           className="min-w-0 flex-1 font-semibold text-foreground whitespace-nowrap leading-none"
