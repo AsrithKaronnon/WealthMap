@@ -90,7 +90,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
             <button
               key={num}
               onClick={() => handleDigit(num.toString())}
-              className="h-16 rounded-full bg-card/50 border border-border/50 text-2xl font-semibold hover:bg-muted active:scale-95 transition-all"
+              className="h-16 rounded-full bg-card clay-btn text-2xl font-semibold hover:bg-muted transition-all"
             >
               {num}
             </button>
@@ -110,7 +110,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
           
           <button
             onClick={() => handleDigit('0')}
-            className="h-16 rounded-full bg-card/50 border border-border/50 text-2xl font-semibold hover:bg-muted active:scale-95 transition-all"
+            className="h-16 rounded-full bg-card clay-btn text-2xl font-semibold hover:bg-muted transition-all"
           >
             0
           </button>

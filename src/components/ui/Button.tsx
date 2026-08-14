@@ -21,7 +21,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90 clay-btn",
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 clay-btn",
-    outline: "border-2 border-border bg-background text-foreground hover:bg-secondary hover:text-secondary-foreground rounded-[calc(var(--radius)-0.25rem)]",
+    outline: "border-2 border-border bg-background text-foreground hover:bg-secondary hover:text-secondary-foreground clay-btn",
     ghost: "bg-transparent text-foreground hover:bg-secondary hover:text-secondary-foreground rounded-[calc(var(--radius)-0.25rem)]",
     danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90 clay-btn"
   };

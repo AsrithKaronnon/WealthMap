@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { supabase } from '../lib/supabaseClient';
 import { toast } from '../lib/useToastStore';
 import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
 import { parseTextTransaction, parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
 import { 
-  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, PieChart, Camera, UploadCloud, Filter
+  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, PieChart, Camera, UploadCloud, Filter, Minus
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
-import { getRelativeDateString } from '../lib/utils';
 import { Skeleton } from '../components/ui/Skeleton';
-import { Tabs } from '../components/ui/Tabs';
+import { mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
 
 export const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -428,6 +428,17 @@ export const Transactions: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const navigate = useNavigate();
+  const search = useSearch({ from: '/money' });
+
+  useEffect(() => {
+    if (search.add === '1') {
+      handleOpenAdd();
+      navigate({ to: '/money', search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when ?add=1 is present
+  }, [search.add]);
+
   const handleOpenEdit = (tx: any) => {
     setEditingTxId(tx.id);
     setFormData({
@@ -578,8 +589,56 @@ export const Transactions: React.FC = () => {
   return (
     <div className="flex flex-col gap-1.5">
       
+      {/* Mobile sticky page header + quick add */}
+      <div className="md:hidden sticky top-0 z-30 -mx-3 bg-background/90 backdrop-blur-md border-b border-border/40">
+        <div className="px-3 h-12 flex items-center justify-between gap-2">
+          <span className="text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">Transactions</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={handleExportCSV} aria-label="Export" className={`${mobileHeaderIconBtn} clay-btn`}>
+              <Download className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleOpenAdd}
+              aria-label="Add transaction"
+              className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        <form onSubmit={handleQuickAdd} className="px-3 pb-2 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+          <div className="relative flex-1 flex items-center clay-input-wrapper h-10">
+            <input
+              type="text"
+              placeholder="e.g. Coffee 5"
+              value={quickAddVal}
+              onChange={(e) => setQuickAddVal(e.target.value)}
+              className="compact-input no-focus-ring w-full bg-transparent pl-3 pr-10 py-0 text-sm outline-none h-10"
+              disabled={quickAddLoading}
+            />
+            {isGeminiConfigured() && (
+              <label className="absolute right-0 text-muted-foreground cursor-pointer p-2 h-10 w-10 flex items-center justify-center">
+                <Camera className="h-4 w-4" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handleQuickCameraUpload}
+                  disabled={quickAddLoading}
+                />
+              </label>
+            )}
+          </div>
+          <Button type="submit" size="sm" loading={quickAddLoading} className="shrink-0 h-10 cursor-pointer">
+            Add
+          </Button>
+        </form>
+      </div>
+
       {/* HEADER: Title & Actions */}
-      <div className="flex flex-row justify-between items-center w-full select-none">
+      <div className="hidden md:flex flex-row justify-between items-center w-full select-none">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Transactions</h1>
         <div className="flex items-center gap-3 shrink-0">
           <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full clay-btn text-muted-foreground transition-colors cursor-pointer">
@@ -587,7 +646,7 @@ export const Transactions: React.FC = () => {
           </button>
           <button 
             onClick={handleOpenAdd} 
-            className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer shadow-lg shadow-primary/20"
+            className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer clay-btn"
           >
             <Plus className="h-5 w-5" />
           </button>
@@ -618,7 +677,7 @@ export const Transactions: React.FC = () => {
         <select 
           value={dateFilter}
           onChange={(e: any) => setDateFilter(e.target.value)}
-          className="no-focus-ring text-[13px] font-medium px-4 py-2.5 clay-input-wrapper text-foreground cursor-pointer w-full"
+          className="compact-input no-focus-ring text-[13px] font-medium px-4 py-2.5 clay-input-wrapper text-foreground cursor-pointer w-full"
         >
           <option value="all">All Time</option>
           <option value="week">Last 7 Days</option>
@@ -636,7 +695,7 @@ export const Transactions: React.FC = () => {
           placeholder="Search transactions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="no-focus-ring text-xs font-medium text-foreground bg-transparent border-none h-full focus:outline-none focus:ring-0 flex-1 placeholder:text-muted-foreground py-0"
+          className="compact-input no-focus-ring text-xs font-medium text-foreground bg-transparent border-none h-full focus:outline-none focus:ring-0 flex-1 placeholder:text-muted-foreground py-0"
         />
       </div>
 
@@ -686,7 +745,7 @@ export const Transactions: React.FC = () => {
                      <div key={b.id || idx} className="p-4 bg-card rounded-xl border border-border/50">
                        <div className="flex justify-between items-center mb-2">
                          <span className="font-semibold">{b.name}</span>
-                         <span className="text-sm font-medium">${spent.toLocaleString()} / ${b.amount.toLocaleString()}</span>
+                         <span className="text-sm font-medium">{currencySymbol}{spent.toLocaleString()} / {currencySymbol}{b.amount.toLocaleString()}</span>
                        </div>
                        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                          <div 
@@ -697,8 +756,10 @@ export const Transactions: React.FC = () => {
                        <div className="flex justify-between mt-3 text-xs">
                           <span className="text-muted-foreground">{pct.toFixed(0)}% used</span>
                           <div className="flex gap-2">
-                            <button onClick={() => updateBudgetAmount(idx, b.amount - 50)} className="text-muted-foreground hover:text-foreground cursor-pointer">-$50</button>
-                            <button onClick={() => updateBudgetAmount(idx, b.amount + 50)} className="text-muted-foreground hover:text-foreground cursor-pointer">+$50</button>
+                            <button type="button" aria-label="Decrease budget by 50" onClick={() => updateBudgetAmount(idx, Math.max(0, b.amount - 50))} className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"><Minus className="h-4 w-4" /></button>
+                            <button type="button" onClick={() => updateBudgetAmount(idx, Math.max(0, b.amount - 50))} className="hidden md:inline text-muted-foreground hover:text-foreground cursor-pointer">-$50</button>
+                            <button type="button" onClick={() => updateBudgetAmount(idx, b.amount + 50)} className="hidden md:inline text-muted-foreground hover:text-foreground cursor-pointer">+$50</button>
+                            <button type="button" aria-label="Increase budget by 50" onClick={() => updateBudgetAmount(idx, b.amount + 50)} className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"><Plus className="h-4 w-4" /></button>
                             <button onClick={() => removeBudget(idx)} className="text-red-500/70 hover:text-red-500 ml-2 cursor-pointer">Remove</button>
                           </div>
                        </div>
@@ -912,8 +973,8 @@ export const Transactions: React.FC = () => {
               <p><strong>Tip:</strong> If you are paying an upcoming bill, pay it directly from the Dashboard to avoid creating duplicate transaction records.</p>
             </div>
             <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1 order-1">
               <label className="text-xs font-bold text-muted-foreground">Type</label>
               <select
                 value={formData.transaction_type_id}
@@ -931,7 +992,33 @@ export const Transactions: React.FC = () => {
                 <option value={SEED.transaction_types.transfer}>Transfer / Adjustment</option>
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 order-2 sm:order-4">
+              <label className="text-xs font-bold text-muted-foreground">
+                Amount ({currencySymbol}) {isTransfer && <span className="font-normal opacity-80">- Use negative for Money Out</span>}
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                step="0.01"
+                required
+                value={formData.amount || ''}
+                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+              />
+            </div>
+            {!isTransfer && (
+              <div className="flex flex-col gap-1 order-3 sm:order-5 sm:col-span-2">
+                <label className="text-xs font-bold text-muted-foreground">Category</label>
+                <select
+                  value={formData.category_id}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="flex flex-col gap-1 order-4 sm:order-2">
               <label className="text-xs font-bold text-muted-foreground">Date</label>
               <input
                 type="date"
@@ -941,10 +1028,7 @@ export const Transactions: React.FC = () => {
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 order-5 col-span-2 sm:order-3 sm:col-span-1">
               <label className="text-xs font-bold text-muted-foreground">Description / Source</label>
               <input
                 type="text"
@@ -955,33 +1039,7 @@ export const Transactions: React.FC = () => {
                 placeholder="e.g. Starbucks, Salary Paycheck"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">
-                Amount ({currencySymbol}) {isTransfer && <span className="font-normal opacity-80">- Use negative for Money Out</span>}
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                value={formData.amount || ''}
-                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
-              />
-            </div>
           </div>
-
-          {!isTransfer && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Category</label>
-              <select
-                value={formData.category_id}
-                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
@@ -1153,9 +1211,9 @@ export const Transactions: React.FC = () => {
         </div>
       </Dialog>
 
-      {/* QUICK ENTRY BOX (Moved to bottom) */}
-      <div className="mt-8">
-        <Card className="border border-primary/20 bg-primary/5 shadow-xs">
+      {/* QUICK ENTRY BOX (desktop) */}
+      <div className="hidden md:block mt-8">
+        <Card className="bg-primary/5">
           <CardContent className="p-6">
             <form onSubmit={handleQuickAdd} className="flex flex-col md:flex-row gap-4 items-center">
               <div className="flex items-center gap-2 text-primary shrink-0 select-none">

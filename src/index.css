@@ -99,6 +99,21 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   overflow-x: hidden;
+  overscroll-behavior: none; /* prevents rubber-band revealing browser chrome */
+}
+
+/* Tap highlight fix */
+a, button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch scrolling on iOS */
+.overflow-y-auto, .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+.compact-input {
+  height: auto !important;
 }
 
 /* Flat card utility instead of glass */
@@ -120,7 +135,7 @@ body {
     8px 8px 16px rgba(0, 0, 0, 0.04),
     -8px -8px 16px rgba(255, 255, 255, 0.8),
     inset 2px 2px 6px rgba(255, 255, 255, 1),
-    inset -2px -2px 6px rgba(0, 0, 0, 0.03);
+    inset -2px -2px 6px rgba(0, 0, 0, 0.03) !important;
   border: 1px solid rgba(255, 255, 255, 0.5);
   transition: all 0.3s ease;
 }
@@ -130,7 +145,7 @@ body {
     8px 8px 16px rgba(0, 0, 0, 0.4),
     -8px -8px 16px rgba(255, 255, 255, 0.02),
     inset 2px 2px 4px rgba(255, 255, 255, 0.05),
-    inset -2px -2px 4px rgba(0, 0, 0, 0.3);
+    inset -2px -2px 4px rgba(0, 0, 0, 0.3) !important;
   border: 1px solid rgba(255, 255, 255, 0.02);
 }
 
@@ -140,7 +155,7 @@ body {
     4px 4px 10px rgba(0, 0, 0, 0.05),
     -4px -4px 10px rgba(255, 255, 255, 0.5),
     inset 2px 2px 4px rgba(255, 255, 255, 0.4),
-    inset -2px -2px 4px rgba(0, 0, 0, 0.05);
+    inset -2px -2px 4px rgba(0, 0, 0, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -150,21 +165,21 @@ body {
     4px 4px 10px rgba(0, 0, 0, 0.3),
     -4px -4px 10px rgba(255, 255, 255, 0.02),
     inset 2px 2px 4px rgba(255, 255, 255, 0.05),
-    inset -2px -2px 4px rgba(0, 0, 0, 0.2);
+    inset -2px -2px 4px rgba(0, 0, 0, 0.2) !important;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .clay-btn:active, .clay-btn.active {
   box-shadow: 
     inset 4px 4px 8px rgba(0, 0, 0, 0.1),
-    inset -4px -4px 8px rgba(255, 255, 255, 0.4);
+    inset -4px -4px 8px rgba(255, 255, 255, 0.4) !important;
   transform: translateY(2px) scale(0.98);
 }
 
 .dark .clay-btn:active, .dark .clay-btn.active {
   box-shadow: 
     inset 4px 4px 8px rgba(0, 0, 0, 0.4),
-    inset -4px -4px 8px rgba(255, 255, 255, 0.02);
+    inset -4px -4px 8px rgba(255, 255, 255, 0.02) !important;
 }
 
 .clay-badge {
@@ -372,6 +387,9 @@ details[open] summary ~ * {
 }
 
 @media (max-width: 639px) {
+  .page-title, h1 {
+    white-space: normal;
+  }
   .page-title + .secondary-text,
   .page-title + p.secondary-text {
     display: none !important;
@@ -567,6 +585,9 @@ details[open] summary ~ * {
 }
 
 @media (max-width: 639px) {
+  .page-title, h1 {
+    white-space: normal;
+  }
   .page-title + .secondary-text,
   .page-title + p.secondary-text {
     display: none !important;
@@ -668,4 +689,64 @@ svg.lucide {
 }
 .form-input:focus {
   border-color: hsl(var(--primary));
+}
+
+/* Mobile app chrome — do not let global h1/label rules inflate in-page headers */
+@media (max-width: 767px) {
+  h1 {
+    font-size: unset !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+  }
+
+  h1.page-title {
+    font-size: 1.375rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  label {
+    text-transform: none !important;
+    letter-spacing: 0.01em !important;
+    font-size: 12px !important;
+  }
+
+  .mobile-bottom-nav {
+    background: var(--color-card);
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-bottom: none;
+    box-shadow:
+      0 -8px 16px rgba(0, 0, 0, 0.05),
+      0 -4px 10px rgba(255, 255, 255, 0.7),
+      inset 2px 2px 6px rgba(255, 255, 255, 1),
+      inset -2px -2px 6px rgba(0, 0, 0, 0.03) !important;
+  }
+
+  .dark .mobile-bottom-nav {
+    border-color: rgba(255, 255, 255, 0.04);
+    box-shadow:
+      0 -8px 20px rgba(0, 0, 0, 0.45),
+      0 -2px 8px rgba(255, 255, 255, 0.02),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.05),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  input.compact-input,
+  select.compact-input {
+    height: 2.5rem !important;
+  }
+}
+
+input.compact-input,
+select.compact-input {
+  height: 2.5rem !important;
+}
+input.compact-input.bg-transparent,
+input.compact-input.no-focus-ring {
+  height: 100% !important;
+  min-height: 0 !important;
 }

@@ -15,7 +15,7 @@ interface TabsProps {
 
 export const Tabs: React.FC<TabsProps> = ({ options, activeId, onChange, className = '' }) => {
   return (
-    <div className={`flex bg-muted/30 p-1 rounded-lg border border-border relative select-none ${className}`}>
+    <div className={`flex clay-input-wrapper p-1 rounded-lg relative select-none overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`}>
       {options.map((option) => {
         const isActive = option.id === activeId;
         return (
@@ -30,7 +30,7 @@ export const Tabs: React.FC<TabsProps> = ({ options, activeId, onChange, classNa
             {isActive && (
               <motion.div
                 layoutId="activeTabBg"
-                className="absolute inset-0 bg-card rounded-md -z-10 shadow-sm border border-border"
+                className="absolute inset-0 bg-card rounded-md -z-10 clay-btn"
                 transition={{ type: 'spring', stiffness: 350, damping: 28 }}
               />
             )}

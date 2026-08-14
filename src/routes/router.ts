@@ -17,7 +17,14 @@ export const rootRoute = createRootRoute({
 
 // Configure core child routes for simplified consumer finance
 export const dashboardRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: Dashboard });
-export const transactionsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/money', component: Transactions });
+export const transactionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/money',
+  component: Transactions,
+  validateSearch: (search: Record<string, unknown>): { add?: string } => ({
+    add: search.add === '1' || search.add === 1 || search.add === true ? '1' : undefined,
+  }),
+});
 export const goalsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/goals', component: Goals });
 export const billsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bills', component: Bills });
 export const investmentsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/investments', component: Investments });

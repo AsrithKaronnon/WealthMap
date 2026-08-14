@@ -11,6 +11,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
 import { Tabs } from '../components/ui/Tabs';
+import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
 
 // ─── Asset Tab Definitions ────────────────────────────────────────────────────
@@ -681,8 +682,22 @@ export const Investments: React.FC = () => {
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
 
+      <MobilePageHeader title="Assets">
+        <button
+          onClick={() => {
+            if (activeAssetTab === 'liquid') handleOpenAddAccount();
+            else if (activeAssetTab === 'investments') setIsAddChoiceModalOpen(true);
+            else handleOpenAddAsset();
+          }}
+          aria-label="Add asset"
+          className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </MobilePageHeader>
+
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+      <div className="hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
         <div className="flex justify-between items-center w-full sm:w-auto">
           <div>
             <h1 className="page-title text-foreground m-0">Assets</h1>
@@ -716,11 +731,11 @@ export const Investments: React.FC = () => {
       </div>
 
       {/* Total Net Worth Banner */}
-      <div className="bg-primary text-primary-foreground border-none rounded-2xl shadow-lg transition-all duration-300 overflow-hidden">
+      <div className="bg-primary text-primary-foreground rounded-2xl clay-btn transition-all duration-300 overflow-hidden">
         <div className="p-5 sm:p-7 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex flex-col text-center sm:text-left">
             <span className="text-xs font-semibold uppercase tracking-widest opacity-75 mb-1">Total Net Worth</span>
-            <span className="text-4xl sm:text-5xl font-extrabold flex items-center justify-center sm:justify-start">
+            <span className="text-3xl sm:text-5xl font-extrabold flex items-center justify-center sm:justify-start">
               {(loading || assetsLoading || isFetchingPrices) ? (
                 <div className="h-10 sm:h-12 w-40 sm:w-56 bg-white/20 animate-pulse rounded-lg mt-1" />
               ) : (
@@ -728,35 +743,35 @@ export const Investments: React.FC = () => {
               )}
             </span>
           </div>
-          <div className="flex flex-row justify-between sm:justify-start w-full sm:w-auto mt-3 sm:mt-0 gap-1 sm:gap-3">
+          <div className="grid grid-cols-2 sm:flex sm:flex-row justify-between sm:justify-start w-full sm:w-auto mt-3 sm:mt-0 gap-2 sm:gap-3">
             {bankCashTotal > 0 && (
-              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Bank & Cash</div>
-                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+              <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Bank & Cash</div>
+                <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
                   {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${bankCashTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
             )}
             {creditCardUsage > 0 && (
-              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Credit Card Usage</div>
-                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+              <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Credit Card Usage</div>
+                <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
                   {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${creditCardUsage.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
             )}
             {investmentsTotal > 0 && (
-              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Stocks & MF</div>
-                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+              <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Stocks & MF</div>
+                <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
                   {(loading || isFetchingPrices) ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${investmentsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
             )}
             {assetsTotal > 0 && (
-              <div className="bg-white/10 rounded-xl px-1 sm:px-4 py-1.5 sm:py-2 text-center flex-1 sm:flex-none sm:min-w-[120px]">
-                <div className="opacity-70 mb-0.5 text-[9px] sm:text-xs truncate">Other Assets</div>
-                <div className="font-bold text-[10px] sm:text-sm flex justify-center mt-1">
+              <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Other Assets</div>
+                <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
                   {assetsLoading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${assetsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
@@ -848,8 +863,8 @@ export const Investments: React.FC = () => {
                         <span className="text-xs text-muted-foreground">{acc.account_type || 'Account'}</span>
                       </div>
                       <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleOpenEditAccount(acc)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors cursor-pointer" title="Edit"><Edit2 className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => handleHideAccount(acc.id)} className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer" title="Hide Account"><Trash2 className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleOpenEditAccount(acc)} className="p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-1.5 flex items-center justify-center text-muted-foreground hover:bg-muted rounded-md transition-colors cursor-pointer" title="Edit"><Edit2 className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => handleHideAccount(acc.id)} className="p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-1.5 flex items-center justify-center text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors cursor-pointer" title="Hide Account"><Trash2 className="h-3.5 w-3.5" /></button>
                         <span className="ml-1 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full hidden sm:block">Live</span>
                       </div>
                     </div>
@@ -871,7 +886,7 @@ export const Investments: React.FC = () => {
                               {currencySymbol}{(acc.credit_limit || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </span>
                           </div>
-                          <button onClick={() => handleOpenPayoff(acc)} className="mt-0.5 text-[10px] bg-primary/10 text-primary font-bold px-2 py-1 rounded hover:bg-primary/20 transition-colors cursor-pointer">
+                          <button onClick={() => handleOpenPayoff(acc)} className="mt-0.5 min-h-[44px] px-3 py-2 text-xs sm:min-h-0 sm:text-[10px] sm:px-2 sm:py-1 bg-primary/10 text-primary font-bold rounded hover:bg-primary/20 transition-colors cursor-pointer">
                             Pay Off
                           </button>
                         </div>
@@ -957,18 +972,18 @@ export const Investments: React.FC = () => {
         <div className="flex flex-col gap-4 mt-2">
           {!formData.symbol ? (
             <div className="flex flex-col gap-2 relative">
-              <div className="flex bg-secondary/30 p-1 rounded-lg">
-                <button type="button" onClick={() => { setActiveSearchTab('stocks'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'stocks' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>
+              <div className="flex clay-input-wrapper p-1 rounded-lg">
+                <button type="button" onClick={() => { setActiveSearchTab('stocks'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'stocks' ? 'bg-card clay-btn text-foreground' : 'text-muted-foreground'}`}>
                   Stocks & ETFs
                 </button>
-                <button type="button" onClick={() => { setActiveSearchTab('mf'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'mf' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>
+                <button type="button" onClick={() => { setActiveSearchTab('mf'); setSearchResults([]); setSearchQuery(''); }} className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${activeSearchTab === 'mf' ? 'bg-card clay-btn text-foreground' : 'text-muted-foreground'}`}>
                   Indian Mutual Funds
                 </button>
               </div>
               <label className="text-[11px] font-bold text-muted-foreground uppercase mt-2">Search {activeSearchTab === 'mf' ? 'Mutual Fund' : 'Ticker'}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input autoFocus type="text" placeholder={activeSearchTab === 'mf' ? 'e.g. Parag Parikh, Quant' : 'e.g. AAPL, TSLA, REL'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="no-focus-ring pl-9 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors" />
+                <input autoFocus type="text" inputMode="search" autoCapitalize="characters" placeholder={activeSearchTab === 'mf' ? 'e.g. Parag Parikh, Quant' : 'e.g. AAPL, TSLA, REL'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="no-focus-ring pl-9 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors" />
                 {isSearching && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
               </div>
               {searchResults.length > 0 && (
@@ -1000,7 +1015,7 @@ export const Investments: React.FC = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase">Quantity Owned (Units)</label>
-            <input type="number" step="0.0001" min="0" required value={formData.quantity || ''} onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })} className="no-focus-ring w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors font-mono" placeholder="e.g. 10.5" />
+            <input type="number" inputMode="numeric" step="0.0001" min="0" required value={formData.quantity || ''} onChange={(e) => setFormData({ ...formData, quantity: parseFloat(e.target.value) || 0 })} className="no-focus-ring w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-0 focus:border-primary transition-colors font-mono" placeholder="e.g. 10.5" />
           </div>
 
           <div className="mt-2 p-4 border border-border rounded-lg bg-secondary/10 flex flex-col gap-3">
@@ -1020,7 +1035,7 @@ export const Investments: React.FC = () => {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase">Amount ({currencySymbol})</label>
-                    <input type="number" min="1" value={formData.sip_amount || ''} onChange={(e) => setFormData({ ...formData, sip_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono" placeholder="5000" />
+                    <input type="number" inputMode="numeric" min="1" value={formData.sip_amount || ''} onChange={(e) => setFormData({ ...formData, sip_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono" placeholder="5000" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
@@ -1137,7 +1152,8 @@ export const Investments: React.FC = () => {
               <input 
                 autoFocus 
                 required 
-                type="number" 
+                type="number"
+                inputMode="numeric"
                 step="0.01" 
                 min="0.01"
                 placeholder="0.00" 
@@ -1170,6 +1186,7 @@ export const Investments: React.FC = () => {
             <input autoFocus required type="text" placeholder="e.g. HDFC Salary Account" value={accountForm.name} onChange={e => setAccountForm({ ...accountForm, name: e.target.value })} className={inp} />
           </div>
           
+          <div className="grid grid-cols-2 sm:grid-cols-1 gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase">Account Type</label>
             <select required value={accountForm.account_type} onChange={e => setAccountForm({ ...accountForm, account_type: e.target.value })} className={inp}>
@@ -1186,12 +1203,16 @@ export const Investments: React.FC = () => {
             </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
-              <input type="number" step="0.01" placeholder="0.00" value={accountForm.opening_balance} onChange={e => setAccountForm({ ...accountForm, opening_balance: e.target.value })} className={`${inp} pl-8`} />
+              <input type="number" inputMode="numeric" step="0.01" placeholder="0.00" value={accountForm.opening_balance} onChange={e => setAccountForm({ ...accountForm, opening_balance: e.target.value })} className={`${inp} pl-8`} />
             </div>
             {accountForm.account_type !== 'Credit Card' && (
-              <p className="text-[10px] text-muted-foreground mt-1">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
+              <p className="text-[10px] text-muted-foreground mt-1 hidden sm:block">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
             )}
           </div>
+          </div>
+          {accountForm.account_type !== 'Credit Card' && (
+            <p className="text-[10px] text-muted-foreground -mt-2 sm:hidden">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
+          )}
 
           {accountForm.account_type === 'Credit Card' && (
             <div className="flex flex-col gap-1.5">
@@ -1200,7 +1221,7 @@ export const Investments: React.FC = () => {
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
-                <input type="number" step="0.01" placeholder="0.00" value={accountForm.credit_used ?? ''} onChange={e => setAccountForm({ ...accountForm, credit_used: e.target.value })} className={`${inp} pl-8`} />
+                <input type="number" inputMode="numeric" step="0.01" placeholder="0.00" value={accountForm.credit_used ?? ''} onChange={e => setAccountForm({ ...accountForm, credit_used: e.target.value })} className={`${inp} pl-8`} />
               </div>
               <p className="text-[10px] text-muted-foreground mt-1">
                 Enter the total amount you have spent on this card so far.
@@ -1223,7 +1244,7 @@ export const Investments: React.FC = () => {
               setIsAddChoiceModalOpen(false);
               handleOpenAdd();
             }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors text-left cursor-pointer"
+            className="flex items-center gap-4 p-4 rounded-xl clay text-left cursor-pointer"
           >
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
               <TrendingUp className="h-5 w-5" />
@@ -1240,7 +1261,7 @@ export const Investments: React.FC = () => {
               setAssetForm({ ...assetForm, asset_category: 'fd', id: '', name: '', current_value: '', purchase_value: '', purchase_date: '', notes: '', metadata: {} });
               setIsAssetModalOpen(true);
             }}
-            className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors text-left cursor-pointer"
+            className="flex items-center gap-4 p-4 rounded-xl clay text-left cursor-pointer"
           >
             <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
               <Landmark className="h-5 w-5" />

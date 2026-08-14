@@ -18,10 +18,10 @@ export const Dialog: React.FC<DialogProps> = ({
   size = 'md'
 }) => {
   const sizeClasses = {
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-    xl: "max-w-2xl"
+    sm: "sm:max-w-sm",
+    md: "sm:max-w-md",
+    lg: "sm:max-w-lg",
+    xl: "sm:max-w-2xl"
   };
 
   React.useEffect(() => {
@@ -48,7 +48,7 @@ export const Dialog: React.FC<DialogProps> = ({
           />
 
           {/* Dialog Container */}
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-2 pb-4 sm:p-4">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
               initial={{ 
                 y: '100%', 
@@ -67,12 +67,13 @@ export const Dialog: React.FC<DialogProps> = ({
               aria-modal="true"
               aria-labelledby={title ? "dialog-title" : undefined}
               className={`
-                w-full sm:${sizeClasses[size]} bg-card text-card-foreground clay border-0
-                rounded-[1.5rem] flex flex-col max-h-[85vh] sm:max-h-[90vh]
+                w-full ${sizeClasses[size]} bg-card text-card-foreground clay
+                rounded-t-[1.5rem] sm:rounded-[1.5rem] flex flex-col max-h-[92vh] sm:max-h-[90vh]
+                pb-[env(safe-area-inset-bottom,12px)]
               `}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border/40">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0">
                 {title ? (
                   <h3 id="dialog-title" className="card-title">
                     {title}
@@ -80,13 +81,13 @@ export const Dialog: React.FC<DialogProps> = ({
                 ) : <div />}
                 <button
                   onClick={onClose}
-                  className="p-1 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                  className="flex items-center justify-center h-10 w-10 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto flex-1">
+              <div className="px-5 py-4 overflow-y-auto flex-1 overscroll-contain">
                 {children}
               </div>
             </motion.div>

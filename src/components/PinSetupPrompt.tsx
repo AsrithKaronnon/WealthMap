@@ -76,7 +76,7 @@ export const PinSetupPrompt: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-card clay rounded-[1.5rem] w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300">
         
         <div className="p-6 flex flex-col items-center text-center">
           {step === 1 ? (

@@ -4,10 +4,11 @@ import { supabase } from '../lib/supabaseClient';
 import { 
   Sun, Moon, Monitor, ShieldCheck, 
   User, 
-  Trash2, ChevronDown, Plus, Sliders, X, ChevronUp, KeyRound
+  Trash2, ChevronDown, Plus, Minus, Sliders, X, ChevronUp, KeyRound
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { SEED } from '../lib/supabaseMock';
 import { registerBiometrics } from '../lib/webauthn';
 
@@ -353,10 +354,12 @@ export const Settings: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6">
       
+      <MobilePageHeader title="Settings" />
+
       {/* Title */}
-      <div className="select-none mb-2">
+      <div className="hidden md:block select-none mb-2">
         <h1 className="text-[22px] font-bold text-foreground tracking-tight">Settings</h1>
       </div>
 
@@ -408,6 +411,7 @@ export const Settings: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="given-name"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -418,6 +422,7 @@ export const Settings: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="family-name"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -427,10 +432,11 @@ export const Settings: React.FC = () => {
 
                 <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-bold text-muted-foreground">Mobile Number</label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
+                    <input
+                      type="tel"
+                      required
+                      autoComplete="tel"
+                      value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
                   />
@@ -556,11 +562,20 @@ export const Settings: React.FC = () => {
                             <span className="text-[10px] text-muted-foreground">Monthly Limit</span>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              aria-label="Decrease budget by 50"
+                              onClick={() => updateBudgetAmount(index, Math.max(0, (b.amount || 0) - 50))}
+                              className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </button>
                             <span className="text-xs text-muted-foreground select-none font-semibold">{activeCurrencySymbol}</span>
                             <input
                               type="number"
+                              inputMode="numeric"
                               step="0.01"
                               min="0"
                               placeholder="0.00"
@@ -568,6 +583,14 @@ export const Settings: React.FC = () => {
                               onChange={(e) => updateBudgetAmount(index, parseFloat(e.target.value) || 0)}
                               className="w-[100px] px-2 py-1.5 rounded-lg border border-border bg-muted/20 text-[13px] font-bold font-mono focus:outline-none focus:ring-2 focus:ring-primary/45 text-right"
                             />
+                            <button
+                              type="button"
+                              aria-label="Increase budget by 50"
+                              onClick={() => updateBudgetAmount(index, (b.amount || 0) + 50)}
+                              className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
                           </div>
                           <button type="button" onClick={() => removeBudget(index)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer" aria-label="Remove Budget">
                             <Trash2 className="h-4 w-4" />
@@ -773,6 +796,7 @@ export const Settings: React.FC = () => {
                     <input
                       type="password"
                       required
+                      autoComplete="current-password"
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -786,6 +810,7 @@ export const Settings: React.FC = () => {
                       <input
                         type="password"
                         required
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
@@ -797,6 +822,7 @@ export const Settings: React.FC = () => {
                       <input
                         type="password"
                         required
+                        autoComplete="new-password"
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"

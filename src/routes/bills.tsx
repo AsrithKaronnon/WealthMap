@@ -13,6 +13,7 @@ import { Dialog } from '../components/ui/Dialog';
 import { Tabs } from '../components/ui/Tabs';
 import { getRelativeDateString } from '../lib/utils';
 import { Skeleton } from '../components/ui/Skeleton';
+import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 
 export const Bills: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -290,10 +291,20 @@ export const Bills: React.FC = () => {
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6">
       
+      <MobilePageHeader title="Bills">
+        <button
+          onClick={handleOpenAdd}
+          aria-label="Add bill"
+          className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </MobilePageHeader>
+
       {/* HEADER: Title & Actions */}
-      <div className="flex justify-between items-end select-none mb-4 sm:mb-6">
+      <div className="hidden md:flex justify-between items-end select-none mb-4 sm:mb-6">
         <div>
           <h1 className="page-title text-foreground">Bills & Loans Due</h1>
           <p className="secondary-text">Log utilities, subscriptions, and active debt EMI repayments.</p>
@@ -340,26 +351,40 @@ export const Bills: React.FC = () => {
 
             return (
               <Card key={p.id} className="hoverEffect select-none">
-                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
-                  {/* Left block description */}
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
+                  {/* Top row (mobile) / left (desktop): name + badge + date */}
                   <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                     <div className={`h-9 w-9 rounded-xl flex items-center justify-center text-foreground font-bold text-xs shrink-0 ${p.is_loan ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'}`}>
                       {p.is_loan ? 'L' : 'B'}
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="body-text font-medium text-foreground truncate">{p.name}</span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="body-text font-medium text-foreground truncate">{p.name}</span>
+                        {!p.is_loan && p.recurrence_type_id !== SEED.recurrences.one_time && (
+                          <button
+                            onClick={() => handleToggleActive(p.id, p.is_active)}
+                            className={`sm:hidden px-2 min-h-[28px] rounded-lg text-[9px] font-bold border transition-all cursor-pointer select-none shrink-0 ${
+                              p.is_active
+                                ? 'bg-green-500/10 text-green-500 border-emerald-500/20 hover:bg-green-500/20'
+                                : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
+                            }`}
+                          >
+                            {p.is_active ? 'Active' : 'Paused'}
+                          </button>
+                        )}
+                      </div>
                       <span className="secondary-text mt-1 truncate">
                         Due: {getRelativeDateString(p.due_date)} • {p.notes}
                       </span>
                     </div>
                   </div>
 
-                  {/* Right block details & actions */}
-                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t border-border/10 sm:border-none pt-2 sm:pt-0 shrink-0">
+                  {/* Bottom row (mobile) / right (desktop): amount + actions */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto shrink-0 min-h-[44px] sm:min-h-0">
                     {!p.is_loan && p.recurrence_type_id !== SEED.recurrences.one_time && (
                       <button
                         onClick={() => handleToggleActive(p.id, p.is_active)}
-                        className={`px-2 py-1 rounded-lg text-[9px] font-bold border transition-all cursor-pointer select-none ${
+                        className={`hidden sm:inline-flex px-2 py-1 rounded-lg text-[9px] font-bold border transition-all cursor-pointer select-none ${
                           p.is_active
                             ? 'bg-green-500/10 text-green-500 border-emerald-500/20 hover:bg-green-500/20'
                             : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
@@ -375,7 +400,7 @@ export const Bills: React.FC = () => {
                       <Button
                         onClick={() => setPayingItem(p)}
                         size="sm"
-                        className="py-1 px-3 text-xs cursor-pointer flex items-center gap-1 shrink-0"
+                        className="py-1 px-3 text-xs cursor-pointer flex items-center gap-1 shrink-0 min-h-[44px] sm:min-h-[40px]"
                       >
                         <Check className="h-3 w-3" />
                         Pay
@@ -390,14 +415,14 @@ export const Bills: React.FC = () => {
                         <button
                           onClick={() => handleEdit(p)}
                           aria-label="Edit Bill"
-                          className="p-1.5 rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-primary dark:hover:bg-white/10 transition-colors cursor-pointer"
+                          className="p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-1.5 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-primary dark:hover:bg-white/10 transition-colors cursor-pointer"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(p.id, p.is_loan)}
                           aria-label="Delete Bill"
-                          className="p-1.5 rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-destructive dark:hover:bg-white/10 transition-colors cursor-pointer"
+                          className="p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:p-1.5 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-[#F8F8F8] hover:text-destructive dark:hover:bg-white/10 transition-colors cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -433,11 +458,12 @@ export const Bills: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Amount ({currencySymbol})</label>
               <input
                 type="number"
+                inputMode="numeric"
                 step="0.01"
                 required
                 value={formData.amount || ''}
@@ -457,7 +483,7 @@ export const Bills: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Bill Category</label>
               <select
@@ -479,7 +505,7 @@ export const Bills: React.FC = () => {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">End Date (Optional)</label>
               <input

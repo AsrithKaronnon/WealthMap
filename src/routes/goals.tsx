@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
 import { Skeleton } from '../components/ui/Skeleton';
+import { MobilePageHeader, mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
 
 export interface Goal {
   id: string;
@@ -336,9 +337,27 @@ export const Goals: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4 md:gap-6">
+      {/* Mobile sticky page header */}
+      <MobilePageHeader title="Goals & Loans">
+        <button
+          onClick={handleOpenLoanAdd}
+          aria-label="Add loan"
+          className={`${mobileHeaderIconBtn} clay-btn`}
+        >
+          <Building className="h-4 w-4" />
+        </button>
+        <button
+          onClick={handleOpenGoalAdd}
+          aria-label="Add goal"
+          className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </MobilePageHeader>
+
       {/* HEADER: Title & Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full select-none gap-4">
+      <div className="hidden md:flex flex-col sm:flex-row justify-between items-start sm:items-center w-full select-none gap-4">
         <div>
           <h1 className="page-title text-foreground">Goals</h1>
           <p className="secondary-text">Track your savings targets and manage active debt.</p>
@@ -362,7 +381,7 @@ export const Goals: React.FC = () => {
         
         {/* TOTAL GOALS BANNER */}
         {goals.length > 0 && (
-          <div className="bg-[#1A1A1A] border border-white/5 rounded-[1.5rem] p-5 sm:p-6 flex justify-between items-center shadow-lg">
+          <div className="clay rounded-[1.5rem] p-5 sm:p-6 flex justify-between items-center">
             <div className="flex flex-col">
               <span className="text-xs font-semibold text-muted-foreground mb-1">Total Goals Value</span>
               <span className="text-3xl font-extrabold text-foreground mb-2 tracking-tight">
@@ -376,7 +395,7 @@ export const Goals: React.FC = () => {
             <div className="flex flex-col items-center justify-center">
               <div className="relative h-20 w-20 flex items-center justify-center">
                 <svg className="h-full w-full -rotate-90 transform">
-                  <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white/5" />
+                  <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-muted" />
                   <circle cx="40" cy="40" r="34" stroke="url(#progressGradient)" strokeWidth="6" fill="transparent" strokeDasharray="213.6" strokeDashoffset={213.6 - (213.6 * Math.min(100, Math.round((goals.reduce((acc, g) => acc + (Number(g.current_amount) || 0), 0) / Math.max(1, goals.reduce((acc, g) => acc + (Number(g.target_amount) || 1), 0))) * 100)) / 100)} strokeLinecap="round" />
                   <defs>
                     <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -398,8 +417,8 @@ export const Goals: React.FC = () => {
         <div className="flex flex-col gap-4">
           <h2 className="text-[15px] font-bold text-foreground">Active Goals</h2>
         {goals.length === 0 ? (
-            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] border border-dashed border-white/10 cursor-pointer hover:bg-white/5 transition-colors mt-2">
-              <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] clay cursor-pointer hover:opacity-90 transition-opacity mt-2">
+              <div className="h-10 w-10 rounded-full clay-btn flex items-center justify-center shrink-0">
                 <Plus className="h-5 w-5 text-indigo-400" />
               </div>
               <div className="flex flex-col">
@@ -418,7 +437,7 @@ export const Goals: React.FC = () => {
               const lowerName = goal.name.toLowerCase();
               let Icon = Target;
               let iconColor = "text-indigo-400";
-              let iconBg = "bg-[#1A1A1A]";
+              let iconBg = "bg-muted";
               
               if (lowerName.includes('trip') || lowerName.includes('travel') || lowerName.includes('europe')) {
                 Icon = Plane;
@@ -434,7 +453,7 @@ export const Goals: React.FC = () => {
               }
 
               return (
-                <div key={goal.id} className="bg-[#111111] border border-white/5 rounded-[1.5rem] p-5 flex flex-col gap-4 relative group">
+                <div key={goal.id} className="clay rounded-[1.5rem] p-5 flex flex-col gap-4 relative group">
                   
                   {/* Delete / Deposit Buttons (Hidden until hover) */}
                   <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -461,7 +480,7 @@ export const Goals: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }}></div>
                     </div>
                     <span className="text-xs font-bold text-foreground w-8 text-right">{pct}%</span>
@@ -475,8 +494,8 @@ export const Goals: React.FC = () => {
             })}
 
             {/* CREATE NEW GOAL BUTTON */}
-            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] border border-dashed border-white/10 cursor-pointer hover:bg-white/5 transition-colors mt-2">
-              <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] clay cursor-pointer hover:opacity-90 transition-opacity mt-2">
+              <div className="h-10 w-10 rounded-full clay-btn flex items-center justify-center shrink-0">
                 <Plus className="h-5 w-5 text-indigo-400" />
               </div>
               <div className="flex flex-col">
@@ -556,20 +575,20 @@ export const Goals: React.FC = () => {
             <label className="text-xs font-bold text-muted-foreground">What are you saving for?</label>
             <input type="text" required value={goalFormData.name} onChange={e => setGoalFormData({ ...goalFormData, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" placeholder="e.g. New Bike, Wedding Fund" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Target Amount ({currencySymbol})</label>
-              <input type="number" required value={goalFormData.target_amount || ''} onChange={e => setGoalFormData({ ...goalFormData, target_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" required value={goalFormData.target_amount || ''} onChange={e => setGoalFormData({ ...goalFormData, target_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Already Saved ({currencySymbol})</label>
-              <input type="number" value={goalFormData.current_amount || ''} onChange={e => setGoalFormData({ ...goalFormData, current_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" value={goalFormData.current_amount || ''} onChange={e => setGoalFormData({ ...goalFormData, current_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Monthly Plan ({currencySymbol})</label>
-              <input type="number" value={goalFormData.monthly_contribution || ''} onChange={e => setGoalFormData({ ...goalFormData, monthly_contribution: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" value={goalFormData.monthly_contribution || ''} onChange={e => setGoalFormData({ ...goalFormData, monthly_contribution: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Target Date</label>
@@ -594,24 +613,24 @@ export const Goals: React.FC = () => {
             <label className="text-xs font-bold text-muted-foreground">Loan Name / Bank</label>
             <input type="text" required value={loanFormData.name} onChange={e => setLoanFormData({ ...loanFormData, name: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" placeholder="e.g. Chase Auto Loan" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Total Loan Amount ({currencySymbol})</label>
-              <input type="number" required value={loanFormData.total_amount || ''} onChange={e => setLoanFormData({ ...loanFormData, total_amount: parseFloat(e.target.value) || 0, outstanding_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" required value={loanFormData.total_amount || ''} onChange={e => setLoanFormData({ ...loanFormData, total_amount: parseFloat(e.target.value) || 0, outstanding_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Current Outstanding ({currencySymbol})</label>
-              <input type="number" required value={loanFormData.outstanding_amount || ''} onChange={e => setLoanFormData({ ...loanFormData, outstanding_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" required value={loanFormData.outstanding_amount || ''} onChange={e => setLoanFormData({ ...loanFormData, outstanding_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Monthly EMI ({currencySymbol})</label>
-              <input type="number" value={loanFormData.monthly_emi || ''} onChange={e => setLoanFormData({ ...loanFormData, monthly_emi: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" value={loanFormData.monthly_emi || ''} onChange={e => setLoanFormData({ ...loanFormData, monthly_emi: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-muted-foreground">Interest Rate (%)</label>
-              <input type="number" step="0.1" value={loanFormData.interest_rate || ''} onChange={e => setLoanFormData({ ...loanFormData, interest_rate: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
+              <input type="number" inputMode="numeric" step="0.1" value={loanFormData.interest_rate || ''} onChange={e => setLoanFormData({ ...loanFormData, interest_rate: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4">
@@ -626,7 +645,7 @@ export const Goals: React.FC = () => {
         <form onSubmit={handleDeposit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-muted-foreground">Amount to Add ({currencySymbol})</label>
-            <input type="number" required autoFocus step="0.01" value={depositAmount || ''} onChange={e => setDepositAmount(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45 font-mono" />
+            <input type="number" inputMode="numeric" required autoFocus step="0.01" value={depositAmount || ''} onChange={e => setDepositAmount(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45 font-mono" />
           </div>
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4">
             <Button type="button" variant="outline" onClick={() => setDepositGoal(null)}>Cancel</Button>
@@ -647,7 +666,7 @@ export const Goals: React.FC = () => {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-muted-foreground">EMI Amount ({currencySymbol})</label>
-            <input type="number" required autoFocus step="0.01" value={emiAmount || ''} onChange={e => setEmiAmount(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45 font-mono" />
+            <input type="number" inputMode="numeric" required autoFocus step="0.01" value={emiAmount || ''} onChange={e => setEmiAmount(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45 font-mono" />
           </div>
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4">
             <Button type="button" variant="outline" onClick={() => setPayEmiLoan(null)}>Cancel</Button>
