@@ -31,7 +31,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(({
 Card.displayName = 'Card';
 
 export const CardHeader = ({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`p-3.5 sm:p-6 flex flex-col gap-1 border-b border-white/10 ${className}`} {...props}>
+  <div className={`p-3.5 sm:p-6 flex flex-col gap-1 border-b border-border ${className}`} {...props}>
     {children}
   </div>
 );
@@ -55,7 +55,7 @@ export const CardContent = ({ children, className = '', ...props }: React.HTMLAt
 );
 
 export const CardFooter = ({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`p-3 sm:p-6 bg-muted/20 border-t border-white/10 flex items-center justify-between ${className}`} {...props}>
+  <div className={`p-3 sm:p-6 bg-muted/20 border-t border-border flex items-center justify-between ${className}`} {...props}>
     {children}
   </div>
 );

@@ -45,7 +45,7 @@
   --secondary-foreground: 222.2 47.4% 11.2%;
 
   --muted: 210 20% 96%;
-  --muted-foreground: 215 16% 55%;
+  --muted-foreground: 215 16% 40%;
 
   --accent: 210 20% 96%;
   --accent-foreground: 222.2 47.4% 11.2%;
@@ -439,9 +439,9 @@ svg.lucide {
 .icon-inline { width: 16px !important; height: 16px !important; }
 .icon-status { width: 16px !important; height: 16px !important; }
 
-/* Global overrides for borders and spacing */
+/* Theme-aware borders (do not hardcode light-gray — breaks dark mode + soft UI) */
 * {
-  border-color: #E5E7EB;
+  border-color: hsl(var(--border));
 }
 
 .shadow-card {

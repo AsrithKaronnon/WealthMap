@@ -13,6 +13,7 @@ import { Dialog } from '../components/ui/Dialog';
 import { Tabs } from '../components/ui/Tabs';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
+import { computeNetWorth } from '../lib/netWorth';
 
 // ─── Asset Tab Definitions ────────────────────────────────────────────────────
 const ALL_ASSET_TABS = [
@@ -71,10 +72,12 @@ export const Investments: React.FC = () => {
   
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [hiddenAccountIds, setHiddenAccountIds] = useState<string[]>([]);
+  const [loans, setLoans] = useState<any[]>([]);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isPayoffModalOpen, setIsPayoffModalOpen] = useState(false);
   const [payoffAccount, setPayoffAccount] = useState<any>(null);
   const [payoffAmount, setPayoffAmount] = useState<string>('');
+  const [payoffFromAccountId, setPayoffFromAccountId] = useState<string>('');
   const [accountForm, setAccountForm] = useState<any>({
     id: '', name: '', account_type: 'Checking', opening_balance: ''
   });
@@ -86,8 +89,12 @@ export const Investments: React.FC = () => {
     purchase_value: '',
     purchase_date: '',
     notes: '',
-    metadata: {}
+    metadata: {},
+    funding_account_id: '',
+    debit_cash: false
   });
+  const [invFundingAccountId, setInvFundingAccountId] = useState<string>('');
+  const [invDebitCash, setInvDebitCash] = useState(false);
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
   const fetchInvestments = async () => {
@@ -97,16 +104,19 @@ export const Investments: React.FC = () => {
         { data: invData },
         { data: accData },
         { data: txData },
-        { data: settingsData }
+        { data: settingsData },
+        { data: loansData }
       ] = await Promise.all([
         supabase.from('investments').select('*'),
         supabase.from('accounts').select('*').order('name', { ascending: true }),
-        supabase.from('transactions').select('id, account_id, transfer_to_account_id, transaction_type_id, amount, is_deleted'),
-        supabase.from('user_settings').select('base_currency_id, currencies(symbol), enabled_asset_tabs, hidden_asset_account_ids').maybeSingle()
+        supabase.from('transactions').select('id, account_id, transfer_to_account_id, transaction_type_id, amount, is_deleted').eq('is_deleted', false),
+        supabase.from('user_settings').select('base_currency_id, currencies(symbol), enabled_asset_tabs, hidden_asset_account_ids').maybeSingle(),
+        supabase.from('loans').select('outstanding_amount').eq('is_deleted', false)
       ]);
 
       if (accData) setAccounts(accData);
       if (txData) setAllTransactions(txData);
+      if (loansData) setLoans(loansData);
 
       if (invData) {
         setInvestments(invData);
@@ -223,6 +233,8 @@ export const Investments: React.FC = () => {
   // ─── Existing Investments Handlers (unchanged) ────────────────────────────
   const handleOpenAdd = () => {
     setFormData({ id: '', symbol: '', name: '', quantity: 0, investment_type_id: SEED.investment_types.mutual_funds, is_sip: false, sip_amount: 0, sip_date: 5, sip_account_id: '' });
+    setInvDebitCash(false);
+    setInvFundingAccountId(accounts.find((a: any) => a.account_type !== 'Credit Card')?.id || '');
     setSearchQuery('');
     setSearchResults([]);
     setIsModalOpen(true);
@@ -278,6 +290,29 @@ export const Investments: React.FC = () => {
       } else {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Not authenticated');
+
+        if (invDebitCash) {
+          if (!invFundingAccountId) throw new Error('Select a funding account to debit');
+          const price = livePrices[formData.symbol] || 0;
+          const cashOut = price > 0 ? price * formData.quantity : 0;
+          if (cashOut > 0) {
+            const { error: txErr } = await supabase.from('transactions').insert([{
+              date: new Date().toISOString().split('T')[0],
+              amount: cashOut,
+              transaction_type_id: SEED.transaction_types.expense,
+              category_id: SEED.expense_categories.shopping,
+              account_id: invFundingAccountId,
+              payment_method_id: SEED.payment_methods.bank_transfer,
+              merchant: `Buy: ${formData.name || formData.symbol}`,
+              notes: `Purchased ${formData.quantity} of ${formData.symbol} @ ${price}`,
+              tags: ['Investment'],
+              is_recurring: false,
+              created_by: session.user.id
+            }]);
+            if (txErr) throw txErr;
+          }
+        }
+
         const { error } = await supabase.from('investments').insert([{
           symbol: formData.symbol,
           name: formData.name,
@@ -319,7 +354,12 @@ export const Investments: React.FC = () => {
 
   // ─── New Asset Handlers ───────────────────────────────────────────────────
   const handleOpenAddAsset = () => {
-    setAssetForm({ id: '', name: '', asset_category: activeAssetTab === 'investments' ? 'fd' : 'gold', current_value: '', purchase_value: '', purchase_date: '', notes: '', metadata: {} });
+    setAssetForm({
+      id: '', name: '', asset_category: activeAssetTab === 'investments' ? 'fd' : 'gold',
+      current_value: '', purchase_value: '', purchase_date: '', notes: '', metadata: {},
+      funding_account_id: accounts.find((a: any) => a.account_type !== 'Credit Card')?.id || '',
+      debit_cash: false
+    });
     setIsAssetModalOpen(true);
   };
 
@@ -352,7 +392,6 @@ export const Investments: React.FC = () => {
         metadata: assetForm.metadata || {}
       };
 
-      // Only include purchase fields where relevant
       if (activeAssetTab !== 'bank_cash') {
         payload.purchase_value = parseFloat(assetForm.purchase_value) || 0;
         payload.purchase_date = assetForm.purchase_date || null;
@@ -362,6 +401,28 @@ export const Investments: React.FC = () => {
         const { error } = await supabase.from('assets').update(payload).eq('id', assetForm.id);
         if (error) throw error;
       } else {
+        if (assetForm.debit_cash) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('Not authenticated');
+          if (!assetForm.funding_account_id) throw new Error('Select a funding account to debit');
+          const cashOut = parseFloat(assetForm.purchase_value) || parseFloat(assetForm.current_value) || 0;
+          if (cashOut > 0) {
+            const { error: txErr } = await supabase.from('transactions').insert([{
+              date: assetForm.purchase_date || new Date().toISOString().split('T')[0],
+              amount: cashOut,
+              transaction_type_id: SEED.transaction_types.expense,
+              category_id: SEED.expense_categories.shopping,
+              account_id: assetForm.funding_account_id,
+              payment_method_id: SEED.payment_methods.bank_transfer,
+              merchant: `Buy asset: ${assetForm.name}`,
+              notes: `Purchase of ${assetForm.name}`,
+              tags: ['Asset'],
+              is_recurring: false,
+              created_by: user.id
+            }]);
+            if (txErr) throw txErr;
+          }
+        }
         const { error } = await supabase.from('assets').insert([payload]);
         if (error) throw error;
       }
@@ -447,6 +508,7 @@ export const Investments: React.FC = () => {
   const handleOpenPayoff = (acc: any) => {
     setPayoffAccount(acc);
     setPayoffAmount('');
+    setPayoffFromAccountId('');
     setIsPayoffModalOpen(true);
   };
 
@@ -456,18 +518,58 @@ export const Investments: React.FC = () => {
     try {
       const amount = parseFloat(payoffAmount) || 0;
       if (amount <= 0) return toast.error('Enter a valid amount');
-      
-      const currentBalance = payoffAccount.computed_balance || 0;
-      let newBalance = currentBalance - amount;
-      if (newBalance < 0) newBalance = 0; // Don't let it go below 0
+      if (!payoffFromAccountId) return toast.error('Select an account to pay from');
 
-      const { error } = await supabase
-        .from('accounts')
-        .update({ balance: newBalance })
-        .eq('id', payoffAccount.id);
-        
-      if (error) throw error;
-      
+      const usage = Math.abs(payoffAccount.computed_balance || 0);
+      if (amount > usage + 0.001) {
+        return toast.error('Payoff cannot exceed current credit usage');
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const today = new Date().toISOString().split('T')[0];
+      const label = `CC Payment: ${payoffAccount.name}`;
+
+      // 1) Debit funding account (expense → trigger reduces bank balance)
+      const { data: bankRows, error: bankErr } = await supabase.from('transactions').insert([{
+        date: today,
+        amount,
+        transaction_type_id: SEED.transaction_types.expense,
+        category_id: SEED.expense_categories.utilities,
+        account_id: payoffFromAccountId,
+        payment_method_id: SEED.payment_methods.bank_transfer,
+        merchant: label,
+        notes: `Credit card payment toward ${payoffAccount.name}`,
+        tags: ['Credit Card', 'Payment'],
+        is_recurring: false,
+        created_by: user.id
+      }]).select('id');
+      if (bankErr) throw bankErr;
+      const bankTxId = bankRows?.[0]?.id;
+
+      // 2) Reduce CC usage via adjustment (transfer, no destination, negative amount)
+      const { error: ccErr } = await supabase.from('transactions').insert([{
+        date: today,
+        amount: -amount,
+        transaction_type_id: SEED.transaction_types.transfer,
+        category_id: null,
+        account_id: payoffAccount.id,
+        transfer_to_account_id: null,
+        payment_method_id: SEED.payment_methods.bank_transfer,
+        merchant: label,
+        notes: `Applied payment to reduce credit usage on ${payoffAccount.name}`,
+        tags: ['Credit Card', 'Payment'],
+        is_recurring: false,
+        created_by: user.id
+      }]);
+      if (ccErr) {
+        if (bankTxId) {
+          await supabase.from('transactions').update({ is_deleted: true }).eq('id', bankTxId);
+        }
+        throw ccErr;
+      }
+
       fetchInvestments();
       toast.success(`Successfully paid off ${currencySymbol}${amount.toLocaleString('en-IN')}`);
       setIsPayoffModalOpen(false);
@@ -512,17 +614,24 @@ export const Investments: React.FC = () => {
   const investmentsTotal = investments.reduce((acc, inv) => acc + (inv.quantity * (livePrices[inv.symbol] || 0)), 0);
   const assetsTotal = assets.reduce((acc, a) => acc + parseFloat(a.current_value || 0), 0);
   const bankCashTotal = totalLiquidBalance(accountsWithBalance);
-  const totalNetWorth = investmentsTotal + assetsTotal + bankCashTotal;
-  
   const creditCardUsage = Math.abs(accountsWithBalance
     .filter(a => a.account_type === 'Credit Card')
     .reduce((sum, a) => sum + (a.computed_balance || 0), 0));
+  const loansTotal = loans.reduce((sum, l) => sum + parseFloat(l.outstanding_amount || 0), 0);
+  const totalNetWorth = computeNetWorth({
+    liquidCash: bankCashTotal,
+    investments: investmentsTotal,
+    otherAssets: assetsTotal,
+    creditCardUsage,
+    loansOutstanding: loansTotal,
+  });
 
   const netWorthBreakdownCount = [
     bankCashTotal > 0,
     creditCardUsage > 0,
     investmentsTotal > 0,
     assetsTotal > 0,
+    loansTotal > 0,
   ].filter(Boolean).length;
   const netWorthBreakdownCols =
     netWorthBreakdownCount >= 4 ? 'grid-cols-2'
@@ -766,9 +875,9 @@ export const Investments: React.FC = () => {
             )}
             {creditCardUsage > 0 && (
               <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
-                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Credit Card Usage</div>
+                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Credit Cards</div>
                 <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
-                  {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${creditCardUsage.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `−${currencySymbol}${creditCardUsage.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
             )}
@@ -785,6 +894,14 @@ export const Investments: React.FC = () => {
                 <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Other Assets</div>
                 <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
                   {assetsLoading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `${currencySymbol}${assetsTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                </div>
+              </div>
+            )}
+            {loansTotal > 0 && (
+              <div className="bg-white/10 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center sm:flex-none sm:min-w-[120px]">
+                <div className="opacity-70 mb-0.5 text-[11px] sm:text-xs truncate">Loans</div>
+                <div className="font-bold text-xs sm:text-sm flex justify-center mt-1">
+                  {loading ? <div className="h-3 w-10 sm:h-4 sm:w-16 bg-white/20 animate-pulse rounded" /> : `−${currencySymbol}${loansTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
                 </div>
               </div>
             )}
@@ -862,8 +979,8 @@ export const Investments: React.FC = () => {
           ) : accountsWithBalance.length === 0 ? (
             <div className="py-16 text-center border border-dashed border-border rounded-2xl flex flex-col justify-center items-center gap-3">
               <Banknote className="h-12 w-12 text-muted-foreground/40" />
-              <div className="text-sm font-semibold text-foreground">No accounts yet</div>
-              <p className="text-xs text-muted-foreground max-w-xs">Add transactions with an account to see balances here. Balances are computed live from your transaction history.</p>
+              <p className="text-sm text-muted-foreground max-w-xs">Add a bank or cash account to track balances.</p>
+              <Button size="sm" onClick={handleOpenAddAccount}>Add account</Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -885,7 +1002,7 @@ export const Investments: React.FC = () => {
                     <div className="bg-secondary/30 rounded-lg p-3 mt-1 flex justify-between items-center">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase font-bold text-muted-foreground">
-                          {acc.account_type === 'Credit Card' ? 'Available Credit' : 'Current Balance'}
+                          {acc.account_type === 'Credit Card' ? 'Credit Used' : 'Current Balance'}
                         </span>
                         <span className={`font-bold text-lg leading-none ${acc.computed_balance >= 0 || acc.account_type === 'Credit Card' ? 'text-foreground' : 'text-rose-500'}`}>
                           {acc.account_type !== 'Credit Card' && acc.computed_balance < 0 ? '-' : ''}{currencySymbol}{Math.abs(acc.computed_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -893,6 +1010,12 @@ export const Investments: React.FC = () => {
                       </div>
                       {acc.account_type === 'Credit Card' && (
                         <div className="flex flex-col gap-1 items-end">
+                          <div className="flex flex-col gap-0.5 text-right">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Available credit</span>
+                            <span className="font-bold text-sm leading-none text-foreground">
+                              {currencySymbol}{Math.max(0, (acc.credit_limit || 0) - Math.abs(acc.computed_balance || 0)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </span>
+                          </div>
                           <div className="flex flex-col gap-0.5 text-right">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Limit</span>
                             <span className="font-bold text-sm leading-none text-muted-foreground">
@@ -1053,14 +1176,33 @@ export const Investments: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Account</label>
-                  <select value={formData.sip_account_id} onChange={(e) => setFormData({ ...formData, sip_account_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">
-                    <option value="">-- Select Account --</option>
-                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                  <select required={formData.is_sip} value={formData.sip_account_id} onChange={(e) => setFormData({ ...formData, sip_account_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">
+                    <option value="">Select account</option>
+                    {accounts.filter((acc: any) => acc.account_type !== 'Credit Card').map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                   </select>
                 </div>
               </div>
             )}
           </div>
+
+          {!formData.id && (
+            <div className="p-4 border border-border rounded-lg bg-secondary/10 flex flex-col gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={invDebitCash} onChange={(e) => setInvDebitCash(e.target.checked)} className="rounded text-primary focus:ring-primary h-4 w-4" />
+                <span className="text-sm font-bold text-foreground">Debit cash for this purchase</span>
+              </label>
+              {invDebitCash && (
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-border/50">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Account</label>
+                  <select value={invFundingAccountId} onChange={(e) => setInvFundingAccountId(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" required={invDebitCash}>
+                    <option value="">-- Select Account --</option>
+                    {accounts.filter((a: any) => a.account_type !== 'Credit Card').map((acc: any) => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                  </select>
+                  <p className="text-[10px] text-muted-foreground">Uses live price × quantity when available. Leave unchecked if you already owned these units.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <Button onClick={handleSave} className="w-full mt-2 cursor-pointer">Save Asset</Button>
         </div>
@@ -1140,6 +1282,24 @@ export const Investments: React.FC = () => {
             <textarea placeholder="Any additional details..." value={assetForm.notes} onChange={e => setAssetForm({ ...assetForm, notes: e.target.value })} className={`${inp} resize-none h-16`} />
           </div>
 
+          {!assetForm.id && (
+            <div className="p-4 border border-border rounded-lg bg-secondary/10 flex flex-col gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={!!assetForm.debit_cash} onChange={(e) => setAssetForm({ ...assetForm, debit_cash: e.target.checked })} className="rounded text-primary focus:ring-primary h-4 w-4" />
+                <span className="text-sm font-bold text-foreground">Debit cash for this purchase</span>
+              </label>
+              {assetForm.debit_cash && (
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-border/50">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Account</label>
+                  <select value={assetForm.funding_account_id || ''} onChange={(e) => setAssetForm({ ...assetForm, funding_account_id: e.target.value })} className={inp} required={!!assetForm.debit_cash}>
+                    <option value="">-- Select Account --</option>
+                    {accounts.filter((a: any) => a.account_type !== 'Credit Card').map((acc: any) => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 mt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAssetModalOpen(false)}>Cancel</Button>
             <Button type="submit" className="flex-1 cursor-pointer">Save Asset</Button>
@@ -1156,6 +1316,22 @@ export const Investments: React.FC = () => {
           <p className="text-sm text-muted-foreground">
             Current Usage: <span className="font-bold text-foreground">{currencySymbol}{(payoffAccount?.computed_balance || 0).toLocaleString('en-IN')}</span>
           </p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase">Pay From Account</label>
+            <select
+              required
+              value={payoffFromAccountId}
+              onChange={e => setPayoffFromAccountId(e.target.value)}
+              className={inp}
+            >
+              <option value="">Select account</option>
+              {accounts
+                .filter((a: any) => a.account_type !== 'Credit Card' && a.id !== payoffAccount?.id)
+                .map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
               Payoff Amount
@@ -1212,19 +1388,19 @@ export const Investments: React.FC = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
-              {accountForm.account_type === 'Credit Card' ? 'Total Credit Limit' : 'Current Balance'}
+              {accountForm.account_type !== 'Credit Card' ? 'Current Balance (matches bank?)' : 'Total Credit Limit'}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
               <input type="number" inputMode="numeric" step="0.01" placeholder="0.00" value={accountForm.opening_balance} onChange={e => setAccountForm({ ...accountForm, opening_balance: e.target.value })} className={`${inp} pl-8`} />
             </div>
             {accountForm.account_type !== 'Credit Card' && (
-              <p className="text-[10px] text-muted-foreground mt-1 hidden sm:block">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
+              <p className="text-[10px] text-muted-foreground mt-1 hidden sm:block">Matches bank? Set the balance to what your statement shows. Day-to-day changes still come from transactions.</p>
             )}
           </div>
           </div>
           {accountForm.account_type !== 'Credit Card' && (
-            <p className="text-[10px] text-muted-foreground -mt-2 sm:hidden">Update this to match your current real-world balance. Your past transactions will be preserved.</p>
+            <p className="text-[10px] text-muted-foreground -mt-2 sm:hidden">Matches bank? Set the balance to what your statement shows.</p>
           )}
 
           {accountForm.account_type === 'Credit Card' && (

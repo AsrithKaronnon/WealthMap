@@ -76,13 +76,14 @@ export const Goals: React.FC = () => {
     start_date: new Date().toISOString().split('T')[0]
   });
 
-  // Deposit Modal State (Goals)
+  // Mark-toward-goal modal
   const [depositGoal, setDepositGoal] = useState<any | null>(null);
   const [depositAmount, setDepositAmount] = useState<number>(0);
 
   // Pay EMI Modal State (Loans)
   const [payEmiLoan, setPayEmiLoan] = useState<any | null>(null);
   const [emiAmount, setEmiAmount] = useState<number>(0);
+  const [emiAccountId, setEmiAccountId] = useState<string>('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -189,35 +190,21 @@ export const Goals: React.FC = () => {
   const handleDeposit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (depositAmount <= 0 || !depositGoal) return;
-    const newCurrent = depositGoal.current_amount + depositAmount;
+    const newCurrent = (parseFloat(depositGoal.current_amount) || 0) + depositAmount;
     try {
-      const { error: updateError } = await supabase.from('goals').update({ current_amount: newCurrent }).eq('id', depositGoal.id);
+      // Goals are trackers only — cash stays in bank accounts
+      const { error: updateError } = await supabase
+        .from('goals')
+        .update({ current_amount: newCurrent })
+        .eq('id', depositGoal.id);
       if (updateError) throw updateError;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Authentication required");
-
-      const newTx = {
-        date: new Date().toISOString().split('T')[0],
-        amount: depositAmount,
-        transaction_type_id: SEED.transaction_types.transfer,
-        category_id: SEED.expense_categories.health, // Using health since there's no native transfer category
-        account_id: accounts[0].id,
-        payment_method_id: SEED.payment_methods.bank_transfer,
-        merchant: `Goal Transfer: ${depositGoal.name}`,
-        notes: `Savings contribution to goal "${depositGoal.name}"`,
-        tags: ['Essential'],
-        is_recurring: false,
-        created_by: user.id
-      };
-      const { error: txError } = await supabase.from('transactions').insert([newTx]);
-      if (txError) throw txError;
       setDepositGoal(null);
       setDepositAmount(0);
       fetchData();
-      toast.success('Contribution added');
+      toast.success('Progress updated');
     } catch (err) {
-      toast.error('Error processing contribution');
+      toast.error('Error updating goal');
     }
   };
 
@@ -300,14 +287,15 @@ export const Goals: React.FC = () => {
   const handlePayEmi = async (e: React.FormEvent) => {
     e.preventDefault();
     if (emiAmount <= 0 || !payEmiLoan) return;
-    
-    // Simple principal reduction for this example
+    if (!emiAccountId) {
+      toast.error('Select an account to pay from');
+      return;
+    }
+
     const newOutstanding = Math.max(0, parseFloat(payEmiLoan.outstanding_amount) - emiAmount);
+    const newRemaining = Math.max(0, (parseInt(payEmiLoan.remaining_emis, 10) || 0) - 1);
 
     try {
-      const { error: updateError } = await supabase.from('loans').update({ outstanding_amount: newOutstanding }).eq('id', payEmiLoan.id);
-      if (updateError) throw updateError;
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Authentication required");
 
@@ -315,20 +303,27 @@ export const Goals: React.FC = () => {
         date: new Date().toISOString().split('T')[0],
         amount: emiAmount,
         transaction_type_id: SEED.transaction_types.expense,
-        category_id: SEED.expense_categories.housing, // Adjust depending on loan type
-        account_id: accounts[0].id,
+        category_id: SEED.expense_categories.housing,
+        account_id: emiAccountId,
         payment_method_id: SEED.payment_methods.bank_transfer,
         merchant: `EMI Payment: ${payEmiLoan.name}`,
         notes: `EMI for ${payEmiLoan.name}`,
-        tags: ['Essential'],
+        tags: ['Loan', 'EMI'],
         is_recurring: false,
         created_by: user.id
       };
       const { error: txError } = await supabase.from('transactions').insert([newTx]);
       if (txError) throw txError;
 
+      const { error: updateError } = await supabase.from('loans').update({
+        outstanding_amount: newOutstanding,
+        remaining_emis: newRemaining
+      }).eq('id', payEmiLoan.id);
+      if (updateError) throw updateError;
+
       setPayEmiLoan(null);
       setEmiAmount(0);
+      setEmiAccountId('');
       fetchData();
       toast.success('EMI paid successfully');
     } catch (err) {
@@ -417,14 +412,9 @@ export const Goals: React.FC = () => {
         <div className="flex flex-col gap-4">
           <h2 className="text-[15px] font-bold text-foreground">Active Goals</h2>
         {goals.length === 0 ? (
-            <div onClick={handleOpenGoalAdd} className="flex items-center gap-4 p-4 rounded-[1.5rem] clay cursor-pointer hover:opacity-90 transition-opacity mt-2">
-              <div className="h-10 w-10 rounded-full clay-btn flex items-center justify-center shrink-0">
-                <Plus className="h-5 w-5 text-indigo-400" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[14px] font-bold text-foreground">Create New Goal</span>
-                <span className="text-xs font-medium text-muted-foreground/60 mt-0.5">Start saving for something great</span>
-              </div>
+            <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-border/50 rounded-2xl">
+              <p className="text-sm text-muted-foreground max-w-xs">Track progress toward a goal — cash stays in your accounts.</p>
+              <Button size="sm" onClick={handleOpenGoalAdd}>Add goal</Button>
             </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -457,7 +447,10 @@ export const Goals: React.FC = () => {
                   
                   {/* Delete / Deposit Buttons (Hidden until hover) */}
                   <div className="absolute top-4 right-4 flex items-center gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => { setDepositGoal(goal); setDepositAmount(0); }} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-full bg-green-500/10 text-green-500" title="Add Money">
+                    <button onClick={() => {
+                      setDepositGoal(goal);
+                      setDepositAmount(0);
+                    }} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-full bg-green-500/10 text-green-500" title="Mark toward goal">
                       <Plus className="h-4 w-4" />
                     </button>
                     <button onClick={() => handleGoalDelete(goal.id)} className="p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-full bg-red-500/10 text-red-500">
@@ -555,7 +548,11 @@ export const Goals: React.FC = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="p-3 bg-muted/10 border-t border-border/40 select-none">
-                    <Button onClick={() => { setPayEmiLoan(loan); setEmiAmount(Number(loan.monthly_emi) || 0); }} className="w-full py-1 text-xs cursor-pointer bg-background hover:bg-muted text-foreground border border-border/50 shadow-sm" variant="outline">
+                    <Button onClick={() => {
+                      setPayEmiLoan(loan);
+                      setEmiAmount(Number(loan.monthly_emi) || 0);
+                      setEmiAccountId('');
+                    }} className="w-full py-1 text-xs cursor-pointer bg-background hover:bg-muted text-foreground border border-border/50 shadow-sm" variant="outline">
                       Pay EMI
                     </Button>
                   </CardFooter>
@@ -615,21 +612,21 @@ export const Goals: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Total Loan Amount ({currencySymbol})</label>
+              <label className="text-xs font-bold text-muted-foreground whitespace-nowrap">Total Amount ({currencySymbol})</label>
               <input type="number" inputMode="numeric" required value={loanFormData.total_amount || ''} onChange={e => setLoanFormData({ ...loanFormData, total_amount: parseFloat(e.target.value) || 0, outstanding_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Current Outstanding ({currencySymbol})</label>
+              <label className="text-xs font-bold text-muted-foreground whitespace-nowrap">Outstanding ({currencySymbol})</label>
               <input type="number" inputMode="numeric" required value={loanFormData.outstanding_amount || ''} onChange={e => setLoanFormData({ ...loanFormData, outstanding_amount: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Monthly EMI ({currencySymbol})</label>
+              <label className="text-xs font-bold text-muted-foreground whitespace-nowrap">Monthly EMI ({currencySymbol})</label>
               <input type="number" inputMode="numeric" value={loanFormData.monthly_emi || ''} onChange={e => setLoanFormData({ ...loanFormData, monthly_emi: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Interest Rate (%)</label>
+              <label className="text-xs font-bold text-muted-foreground whitespace-nowrap">Interest Rate (%)</label>
               <input type="number" inputMode="numeric" step="0.1" value={loanFormData.interest_rate || ''} onChange={e => setLoanFormData({ ...loanFormData, interest_rate: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45" />
             </div>
           </div>
@@ -640,16 +637,19 @@ export const Goals: React.FC = () => {
         </form>
       </Dialog>
 
-      {/* ALLOCATE GOAL DIALOG */}
-      <Dialog isOpen={!!depositGoal} onClose={() => setDepositGoal(null)} title={depositGoal ? `Add Savings: ${depositGoal.name}` : ''}>
+      {/* MARK TOWARD GOAL */}
+      <Dialog isOpen={!!depositGoal} onClose={() => setDepositGoal(null)} title={depositGoal ? `Mark toward: ${depositGoal.name}` : ''}>
         <form onSubmit={handleDeposit} className="flex flex-col gap-4">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Cash stays in your accounts — this only tracks progress toward the goal.
+          </p>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-muted-foreground">Amount to Add ({currencySymbol})</label>
+            <label className="text-xs font-bold text-muted-foreground">Amount ({currencySymbol})</label>
             <input type="number" inputMode="numeric" required autoFocus step="0.01" value={depositAmount || ''} onChange={e => setDepositAmount(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45 font-mono" />
           </div>
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4">
             <Button type="button" variant="outline" onClick={() => setDepositGoal(null)}>Cancel</Button>
-            <Button type="submit" disabled={depositAmount <= 0}>Complete Deposit</Button>
+            <Button type="submit" disabled={depositAmount <= 0}>Mark toward goal</Button>
           </div>
         </form>
       </Dialog>
@@ -668,9 +668,18 @@ export const Goals: React.FC = () => {
             <label className="text-xs font-bold text-muted-foreground">EMI Amount ({currencySymbol})</label>
             <input type="number" inputMode="numeric" required autoFocus step="0.01" value={emiAmount || ''} onChange={e => setEmiAmount(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45 font-mono" />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-muted-foreground">Pay From Account</label>
+            <select required value={emiAccountId} onChange={e => setEmiAccountId(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45">
+              <option value="">Select account</option>
+              {accounts.filter((a: any) => a.account_type !== 'Credit Card').map((a: any) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4">
             <Button type="button" variant="outline" onClick={() => setPayEmiLoan(null)}>Cancel</Button>
-            <Button type="submit" disabled={emiAmount <= 0}>Pay EMI</Button>
+            <Button type="submit" disabled={emiAmount <= 0 || !emiAccountId}>Pay EMI</Button>
           </div>
         </form>
       </Dialog>

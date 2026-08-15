@@ -3,7 +3,6 @@ import { RootLayout } from './__root';
 import { Dashboard } from './index';
 import { Transactions } from './transactions';
 import { Goals } from './goals';
-import { Bills } from './bills';
 import { Settings } from './settings';
 import { Investments } from './investments';
 import { Insights } from './insights';
@@ -21,12 +20,30 @@ export const transactionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/money',
   component: Transactions,
-  validateSearch: (search: Record<string, unknown>): { add?: string } => ({
-    add: search.add === '1' || search.add === 1 || search.add === true ? '1' : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): {
+    add?: string;
+    move?: 'transfer' | 'recurring' | 'emi' | 'cc';
+    recurringId?: string;
+    loanId?: string;
+    ccId?: string;
+    tab?: 'recurring';
+  } => {
+    const moveRaw = typeof search.move === 'string' ? search.move : undefined;
+    const move =
+      moveRaw === 'transfer' || moveRaw === 'recurring' || moveRaw === 'emi' || moveRaw === 'cc'
+        ? moveRaw
+        : undefined;
+    return {
+      add: search.add === '1' || search.add === 1 || search.add === true ? '1' : undefined,
+      move,
+      recurringId: typeof search.recurringId === 'string' ? search.recurringId : undefined,
+      loanId: typeof search.loanId === 'string' ? search.loanId : undefined,
+      ccId: typeof search.ccId === 'string' ? search.ccId : undefined,
+      tab: search.tab === 'recurring' ? 'recurring' : undefined,
+    };
+  },
 });
 export const goalsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/goals', component: Goals });
-export const billsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/bills', component: Bills });
 export const investmentsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/investments', component: Investments });
 export const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: Settings });
 export const insightsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/insights', component: Insights });
@@ -36,7 +53,6 @@ const routeTree = rootRoute.addChildren([
   dashboardRoute,
   transactionsRoute,
   goalsRoute,
-  billsRoute,
   investmentsRoute,
   settingsRoute,
   insightsRoute,
