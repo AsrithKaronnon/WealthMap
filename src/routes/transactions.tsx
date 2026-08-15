@@ -6,13 +6,14 @@ import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
 import { parseTextTransaction, parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
 import { 
-  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, Camera, Filter, Check
+  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, Camera, Filter, Check, ArrowLeftRight
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
 import { Skeleton } from '../components/ui/Skeleton';
 import { mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
+import { MoveMoneySheet, type MoveMoneyPrefill } from '../components/MoveMoneySheet';
 
 export const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,7 @@ export const Transactions: React.FC = () => {
   const [currencySymbol, setCurrencySymbol] = useState('$');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'spends' | 'income'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'spends' | 'income' | 'recurring'>('all');
   
   // Date Filter State
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'last_month' | 'year' | 'custom'>('month');
@@ -42,6 +43,8 @@ export const Transactions: React.FC = () => {
   
   // Main Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [moveMoneyOpen, setMoveMoneyOpen] = useState(false);
+  const [movePrefill, setMovePrefill] = useState<MoveMoneyPrefill | undefined>();
   const [modalActiveTab, setModalActiveTab] = useState<'scanner' | 'manual'>('manual');
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -62,6 +65,22 @@ export const Transactions: React.FC = () => {
 
   // Edit Modal State
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
+
+  const LAST_ACCOUNT_KEY = 'wealthmap_last_account_id';
+  const rememberAccount = (id: string) => {
+    try {
+      if (id) localStorage.setItem(LAST_ACCOUNT_KEY, id);
+    } catch { /* ignore */ }
+  };
+  const resolveQuickAccountId = () => {
+    try {
+      const last = localStorage.getItem(LAST_ACCOUNT_KEY);
+      if (last && accounts.some((a) => a.id === last)) return last;
+    } catch { /* ignore */ }
+    const funding = accounts.filter((a) => a.account_type !== 'Credit Card');
+    if (funding.length === 1) return funding[0].id;
+    return '';
+  };
 
   // New Account Inline State
   const [isAddingAccount, setIsAddingAccount] = useState(false);
@@ -195,12 +214,19 @@ export const Transactions: React.FC = () => {
           receipt_url = urlData.publicUrl;
         }
 
+        const accountId = resolveQuickAccountId();
+        if (!accountId) {
+          toast.error('Select an account in Log transaction once — quick scan will reuse it.');
+          handleOpenAdd();
+          return;
+        }
+
         const newTx = {
           date: parsed.date || new Date().toISOString().split('T')[0],
           amount: parsed.amount,
           transaction_type_id: parsed.isIncome ? SEED.transaction_types.income : SEED.transaction_types.expense,
           category_id: categoryId,
-          account_id: accounts[0].id,
+          account_id: accountId,
           payment_method_id: SEED.payment_methods.debit_card,
           merchant: parsed.merchant,
           notes: `AI Scanned Receipt`,
@@ -213,6 +239,7 @@ export const Transactions: React.FC = () => {
         const { error } = await supabase.from('transactions').insert([newTx]);
         if (error) throw error;
         
+        rememberAccount(accountId);
         fetchData();
         toast.success('Receipt scanned and saved directly!');
       } catch (err: any) {
@@ -247,12 +274,19 @@ export const Transactions: React.FC = () => {
         if (found) categoryId = found.id;
       }
 
+      const accountId = resolveQuickAccountId();
+      if (!accountId) {
+        toast.error('Select an account in Log transaction once — quick add will reuse it.');
+        handleOpenAdd();
+        return;
+      }
+
       const newTx = {
         date: parsed.date || new Date().toISOString().split('T')[0],
         amount: parsed.amount,
         transaction_type_id: parsed.isIncome ? SEED.transaction_types.income : SEED.transaction_types.expense,
         category_id: categoryId,
-        account_id: accounts[0].id,
+        account_id: accountId,
         payment_method_id: SEED.payment_methods.debit_card,
         merchant: parsed.merchant,
         notes: `AI Quick entry: "${quickAddVal}"`,
@@ -263,6 +297,7 @@ export const Transactions: React.FC = () => {
 
       const { error } = await supabase.from('transactions').insert([newTx]);
       if (error) throw error;
+      rememberAccount(accountId);
       setQuickAddVal('');
       fetchData();
       toast.success('Quick entry parsed and saved!');
@@ -291,6 +326,10 @@ export const Transactions: React.FC = () => {
         if (!payload.transfer_to_account_id) throw new Error('Select a destination account');
         if (payload.account_id === payload.transfer_to_account_id) {
           throw new Error('Source and destination accounts must be different');
+        }
+        const dest = accounts.find((a) => a.id === payload.transfer_to_account_id);
+        if (dest?.account_type === 'Credit Card') {
+          throw new Error('Use Pay credit card (Move money) to reduce card usage');
         }
       } else {
         payload.transfer_to_account_id = null as any;
@@ -350,6 +389,7 @@ export const Transactions: React.FC = () => {
       setIsModalOpen(false);
       setReceiptFile(null);
       setReceiptPreview(null);
+      if (payload.account_id) rememberAccount(payload.account_id);
       fetchData();
       toast.success(editingTxId ? 'Transaction updated successfully!' : 'Transaction saved successfully!');
     } catch (err: any) {
@@ -413,8 +453,8 @@ export const Transactions: React.FC = () => {
       amount: 0,
       transaction_type_id: SEED.transaction_types.expense,
       category_id: expenseCategories[0]?.id || SEED.expense_categories.food,
-      account_id: accounts[0]?.id || '',
-      transfer_to_account_id: accounts.length > 1 ? accounts[1].id : accounts[0]?.id || '',
+      account_id: '',
+      transfer_to_account_id: '',
       merchant: '',
       notes: '',
       tags: ['Essential'],
@@ -429,12 +469,25 @@ export const Transactions: React.FC = () => {
   const search = useSearch({ from: '/money' });
 
   useEffect(() => {
+    if (search.tab === 'recurring') {
+      setActiveTab('recurring');
+    }
     if (search.add === '1') {
       handleOpenAdd();
-      navigate({ to: '/money', search: {}, replace: true });
+      navigate({ to: '/money', search: search.tab === 'recurring' ? { tab: 'recurring' } : {}, replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when ?add=1 is present
-  }, [search.add]);
+    if (search.move) {
+      setMovePrefill({
+        type: search.move,
+        recurringId: search.recurringId,
+        loanId: search.loanId,
+        creditCardId: search.ccId,
+      });
+      setMoveMoneyOpen(true);
+      navigate({ to: '/money', search: search.tab === 'recurring' ? { tab: 'recurring' } : {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when query flags are present
+  }, [search.add, search.move, search.recurringId, search.loanId, search.ccId, search.tab]);
 
   const handleOpenEdit = (tx: any) => {
     setEditingTxId(tx.id);
@@ -503,17 +556,20 @@ export const Transactions: React.FC = () => {
 
   // Filter evaluation
   const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = tx.merchant.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesTab = 
-      activeTab === 'all' || 
+    const merchant = (tx.merchant || '').toLowerCase();
+    const matchesSearch = merchant.includes(searchQuery.toLowerCase());
+
+    const matchesTab =
+      activeTab === 'all' ||
       (activeTab === 'income' && tx.transaction_type_id === SEED.transaction_types.income) ||
-      (activeTab === 'spends' && tx.transaction_type_id === SEED.transaction_types.expense);
-    
+      (activeTab === 'spends' && tx.transaction_type_id === SEED.transaction_types.expense) ||
+      (activeTab === 'recurring' && tx.is_recurring === true);
+
     const matchesCategory = true;
 
+    // Recurring tab shows all templates regardless of date filter
     let matchesDate = true;
-    if (dateFilter !== 'all') {
+    if (activeTab !== 'recurring' && dateFilter !== 'all') {
       const txDate = new Date(tx.date);
       const now = new Date();
       if (dateFilter === 'week') {
@@ -558,6 +614,17 @@ export const Transactions: React.FC = () => {
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={handleExportCSV} aria-label="Export" className={`${mobileHeaderIconBtn} clay-btn`}>
               <Download className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => {
+                setMovePrefill(undefined);
+                setMoveMoneyOpen(true);
+              }}
+              aria-label="Move money"
+              className={`${mobileHeaderIconBtn} clay-btn`}
+              title="Move money"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
             </button>
             <button
               onClick={handleOpenAdd}
@@ -606,6 +673,17 @@ export const Transactions: React.FC = () => {
           <button onClick={handleExportCSV} aria-label="Export" className="flex items-center justify-center h-9 w-9 rounded-full clay-btn text-muted-foreground transition-colors cursor-pointer">
             <Download className="h-4 w-4" />
           </button>
+          <button
+            onClick={() => {
+              setMovePrefill(undefined);
+              setMoveMoneyOpen(true);
+            }}
+            aria-label="Move money"
+            className="flex items-center justify-center h-9 w-9 rounded-full clay-btn text-muted-foreground transition-colors cursor-pointer"
+            title="Move money"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+          </button>
           <button 
             onClick={handleOpenAdd} 
             className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer clay-btn"
@@ -618,19 +696,33 @@ export const Transactions: React.FC = () => {
 
 
       {/* FILTER BUTTON TABS */}
-      <div className="flex clay-input-wrapper p-1 w-full select-none">
-        {(['all', 'spends', 'income'] as const).map(id => {
+      <div className="flex clay-input-wrapper p-1 w-full select-none gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {([
+          { id: 'all' as const, label: 'All' },
+          { id: 'spends' as const, label: 'Spend' },
+          { id: 'income' as const, label: 'Income' },
+          { id: 'recurring' as const, label: 'Recurring' },
+        ]).map(({ id, label }) => {
           const isActive = activeTab === id;
-          const labels: any = { all: 'All', spends: 'Expenses', income: 'Income' };
           return (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
-              className={`flex-1 text-[13px] font-medium rounded-full py-2 transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md' : 'text-muted-foreground hover:text-foreground'}`}
+              type="button"
+              onClick={() => {
+                setActiveTab(id);
+                if (search.tab === 'recurring' && id !== 'recurring') {
+                  navigate({ to: '/money', search: {}, replace: true });
+                }
+              }}
+              className={`flex-1 basis-0 min-w-0 text-[11px] sm:text-[13px] font-medium rounded-full py-2 px-1 transition-all duration-300 truncate ${
+                isActive
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              {labels[id]}
+              {label}
             </button>
-          )
+          );
         })}
       </div>
 
@@ -699,34 +791,76 @@ export const Transactions: React.FC = () => {
             ))}
           </div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground">
-            <FileText className="h-12 w-12 mb-3 opacity-20" />
-            <p className="text-sm font-medium">No transactions found</p>
-            <p className="text-xs opacity-70 mt-1">Adjust your filters or add a new transaction.</p>
+          <div className="flex flex-col items-center justify-center h-full py-12 text-muted-foreground gap-3">
+            <FileText className="h-12 w-12 opacity-20" />
+            <p className="text-sm text-center max-w-xs">
+              {activeTab === 'recurring'
+                ? 'No recurring templates yet. Mark a transaction as recurring when you add or edit it.'
+                : transactions.length === 0
+                  ? 'No money moved yet. Transfer, pay a recurring item, or log a spend.'
+                  : 'Nothing matches these filters.'}
+            </p>
+            {activeTab === 'recurring' ? (
+              <Button size="sm" onClick={handleOpenAdd}>Add transaction</Button>
+            ) : transactions.length === 0 ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setMoveMoneyOpen(true)}>Move money</Button>
+                <Button size="sm" onClick={handleOpenAdd}>Log transaction</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => { setDateFilter('all'); setActiveTab('all'); setSearchQuery(''); }}>
+                Clear filters
+              </Button>
+            )}
           </div>
         ) : (
           (() => {
-            // Group transactions by date
+            // Group transactions by date (or by next due on recurring tab)
             const groupedTransactions = filteredTransactions.reduce((acc: any, tx) => {
-              const dateObj = new Date(tx.date);
-              let dateLabel = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-              
-              const today = new Date();
-              const yesterday = new Date();
-              yesterday.setDate(today.getDate() - 1);
-              
-              if (dateObj.toDateString() === today.toDateString()) {
-                dateLabel = 'Today';
-              } else if (dateObj.toDateString() === yesterday.toDateString()) {
-                dateLabel = 'Yesterday';
+              let dateLabel: string;
+              if (activeTab === 'recurring') {
+                if (tx.next_recurring_date) {
+                  const due = new Date(tx.next_recurring_date);
+                  const today = new Date();
+                  const tomorrow = new Date();
+                  tomorrow.setDate(today.getDate() + 1);
+                  if (due.toDateString() === today.toDateString()) dateLabel = 'Due today';
+                  else if (due.toDateString() === tomorrow.toDateString()) dateLabel = 'Due tomorrow';
+                  else if (due < today) dateLabel = 'Overdue';
+                  else dateLabel = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                } else {
+                  dateLabel = 'No next due';
+                }
+              } else {
+                const dateObj = new Date(tx.date);
+                dateLabel = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+                const today = new Date();
+                const yesterday = new Date();
+                yesterday.setDate(today.getDate() - 1);
+
+                if (dateObj.toDateString() === today.toDateString()) {
+                  dateLabel = 'Today';
+                } else if (dateObj.toDateString() === yesterday.toDateString()) {
+                  dateLabel = 'Yesterday';
+                }
               }
-              
+
               if (!acc[dateLabel]) acc[dateLabel] = [];
               acc[dateLabel].push(tx);
               return acc;
             }, {});
 
-            return Object.entries(groupedTransactions).map(([dateLabel, txs]: any) => (
+            const entries = Object.entries(groupedTransactions) as [string, any[]][];
+            if (activeTab === 'recurring') {
+              entries.sort((a, b) => {
+                const aDate = a[1][0]?.next_recurring_date || '9999';
+                const bDate = b[1][0]?.next_recurring_date || '9999';
+                return aDate.localeCompare(bDate);
+              });
+            }
+
+            return entries.map(([dateLabel, txs]) => (
               <div key={dateLabel} className="flex flex-col gap-1.5">
                 <h3 className="text-[13px] font-medium text-muted-foreground opacity-90 px-1">{dateLabel}</h3>
                 <div className="clay rounded-2xl overflow-hidden flex flex-col p-0">
@@ -766,7 +900,16 @@ export const Transactions: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none">{catName}</span>
+                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none">
+                              {activeTab === 'recurring'
+                                ? [
+                                    tx.next_recurring_date
+                                      ? `Next due ${new Date(tx.next_recurring_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                                      : 'No next due',
+                                    tx.recurrence_interval || 'monthly',
+                                  ].join(' · ')
+                                : catName}
+                            </span>
                           </div>
                         </div>
                         
@@ -847,7 +990,7 @@ export const Transactions: React.FC = () => {
           <div className="flex flex-col gap-4">
             <div className="bg-amber-500/10 text-amber-500 text-xs p-3 rounded-lg flex items-start gap-2">
               <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
-              <p><strong>Tip:</strong> If you are paying an upcoming bill, pay it directly from the Dashboard to avoid creating duplicate transaction records.</p>
+              <p><strong>Tip:</strong> If you are paying a recurring item, use Move money → Pay recurring so the next due date advances correctly.</p>
             </div>
             <form onSubmit={handleSave} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-4">
@@ -948,10 +1091,12 @@ export const Transactions: React.FC = () => {
                 </div>
               ) : (
                 <select
+                  required
                   value={formData.account_id}
                   onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
+                  <option value="">Select account</option>
                   {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               )}
@@ -965,8 +1110,8 @@ export const Transactions: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, transfer_to_account_id: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
-                  <option value="" disabled>Select Destination Account</option>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  <option value="">Select destination</option>
+                  {accounts.filter(a => a.account_type !== 'Credit Card').map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
             )}
@@ -1163,6 +1308,17 @@ export const Transactions: React.FC = () => {
           ))}
         </div>
       </Dialog>
+
+      <MoveMoneySheet
+        isOpen={moveMoneyOpen}
+        onClose={() => {
+          setMoveMoneyOpen(false);
+          setMovePrefill(undefined);
+        }}
+        onSuccess={() => fetchData()}
+        currencySymbol={currencySymbol}
+        prefill={movePrefill}
+      />
 
     </div>
   );

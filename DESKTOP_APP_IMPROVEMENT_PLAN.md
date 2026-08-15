@@ -253,3 +253,144 @@ In __root.tsx, add useEffect with keydown listener:
 
 Skip shortcut if a form input is currently focused (check document.activeElement).
 
+
+---
+
+## 4. Components That Need Changes
+
+| Component | Changes |
+|---|---|
+| __root.tsx | Add Bills + Insights to nav, active left border, max-w wrapper, keyboard shortcuts, fix sidebar toggle |
+| index.tsx | Trend indicators on stat cards, desktop pill time filter, goals/loans grid, activity hover fix, chart tooltip fix |
+| transactions.tsx | Move Quick-Add to top, horizontal filter bar, hover-only row actions, Export label, wider modal on xl |
+| goals.tsx | Loan cards visual parity, goal hover transition, new-user 2-col CTA |
+| investments.tsx | Compact tab bar, balance visual hierarchy |
+| bills.tsx | Hover-only edit/delete, urgency left border, summary stats row |
+| settings.tsx | page-title CSS on header, remove non-functional chevron |
+| insights.tsx | Add to sidebar nav, taller charts on lg |
+| index.css | Add .desktop-input class |
+| EmptyState.tsx (NEW) | Shared empty state component |
+
+---
+
+## 5. Implementation Tasks (Ordered)
+
+### Phase 1: Navigation and Shell (Foundational — Do First)
+
+- [ ] **D1**: Add Bills (Receipt icon) and Insights (BarChart3 icon) to navigationItems array in __root.tsx
+- [ ] **D2**: Update active nav Link in __root.tsx — add border-l-[3px] border-primary and font-semibold to active item
+- [ ] **D3**: Wrap Outlet with max-w-[1280px] mx-auto w-full div in main content area in __root.tsx
+- [ ] **D4**: Add keyboard shortcut useEffect (Cmd+1 through Cmd+7) in __root.tsx
+- [ ] **D5**: Remove non-functional ChevronDown from settings profile card in settings.tsx
+- [ ] **D6**: Redesign sidebar collapse button — move into sidebar as a proper in-sidebar button instead of floating right-[-12px] circle
+
+### Phase 2: Chart and Hover Quality Fixes (Visual — Do Before User-Facing Review)
+
+- [ ] **D7**: Fix Recharts tooltip contentStyle in index.tsx (2 charts) — replace hardcoded dark colour with hsl(var(--card)) variables
+- [ ] **D8**: Fix Recharts tooltip contentStyle in insights.tsx (3 charts) — same fix
+- [ ] **D9**: Fix Activity Feed hover in index.tsx — hover:bg-white/5 to hover:bg-accent/30
+- [ ] **D10**: Audit and fix all hover:bg-white/5 occurrences across all files — replace with hover:bg-accent/30
+
+### Phase 3: Dashboard Improvements
+
+- [ ] **D11**: Add trend text under each stat card (Cash, Income, Spent) in index.tsx — compute vs last period
+- [ ] **D12**: Replace Dashboard time filter hidden-select with desktop pill button row (md:flex) in index.tsx
+- [ ] **D13**: Replace Goals/Loans horizontal scroll strip with lg:grid-cols-2 layout on desktop in index.tsx
+
+### Phase 4: Transactions Page
+
+- [ ] **D14**: Move AI Quick-Add box from bottom of page to top in transactions.tsx (above filter bar, desktop only)
+- [ ] **D15**: Implement horizontal filter bar on desktop in transactions.tsx — single flex row with all 3 filters
+- [ ] **D16**: Apply md:opacity-0 md:group-hover:opacity-100 to transaction row delete button; add Edit button on row hover
+- [ ] **D17**: Add hidden sm:inline text label "Export" to Download CSV button in transactions.tsx
+
+### Phase 5: Goals and Bills Polish
+
+- [ ] **D18**: Apply dark card or liability-tinted card style to Loan cards in goals.tsx
+- [ ] **D19**: Add transition-opacity duration-150 to Goal card hover action buttons in goals.tsx
+- [ ] **D20**: Add 2-column new-user onboarding layout in goals.tsx when both lists are empty
+- [ ] **D21**: Fix bill card edit/delete visibility — md:opacity-0 md:group-hover:opacity-100 in bills.tsx
+- [ ] **D22**: Add urgency left border accent to bill cards based on days until due in bills.tsx
+- [ ] **D23**: Add summary stats row above bill filter tabs in bills.tsx
+
+### Phase 6: Settings and Insights
+
+- [ ] **D24**: Update Settings page header to use page-title CSS class and add secondary-text subtitle in settings.tsx
+- [ ] **D25**: Increase chart heights on large screens in insights.tsx — h-56 lg:h-72
+
+### Phase 7: Global Component Improvements
+
+- [ ] **D26**: Create src/components/ui/EmptyState.tsx component
+- [ ] **D27**: Replace manual empty state JSX in goals.tsx, transactions.tsx, and bills.tsx with EmptyState component
+- [ ] **D28**: Add .desktop-input CSS class to index.css
+
+### Phase 8: Assets and Investments Polish
+
+- [ ] **D29**: Change Investments tab bar wrapper to md:w-auto md:self-start in investments.tsx
+- [ ] **D30**: Increase balance text weight and hierarchy in Liquid tab account cards in investments.tsx
+
+---
+
+## 6. Testing Plan
+
+### After Phase 1 (Navigation)
+
+- Insights and Bills clickable from sidebar and load correctly
+- Active nav item shows left border accent in both light and dark mode
+- Content stops expanding at 1280px on a 1440px+ monitor
+- Keyboard shortcuts: Cmd+1 through Cmd+7 navigate correctly
+- Cmd+1 through Cmd+9 do not interfere when a text input is focused
+
+### After Phase 2 (Charts and Hover)
+
+- Switch to Light Mode
+- Dashboard: hover over Net Worth chart — tooltip should be light-coloured, not dark
+- Insights: hover over each chart — same light tooltip check
+- Activity feed rows: hover in light mode should show visible highlight
+
+### After Phases 3-8
+
+- Run npm run dev and verify each changed page at:
+  - 1024px (small laptop)
+  - 1280px (standard desktop)
+  - 1920px (wide monitor — content capped at 1280px)
+- Mobile is NOT affected — verify at 375px in DevTools that everything looks identical to before
+
+### Build Verification
+
+Run npm run build after each phase. Zero TypeScript errors required before proceeding.
+
+### Cross-Theme Test
+
+For every changed page, test in Light Mode, Dark Mode, and System (OS set to dark).
+
+---
+
+## 7. Risks and Notes
+
+| Risk | Severity | Mitigation |
+|---|---|---|
+| 7 sidebar items may feel crowded in icon-only collapsed view | Low | Icons are distinct (Home, Wallet, Target, TrendingUp, Receipt, BarChart3, Settings) — 7 icons fit vertically |
+| Moving Quick-Add to top changes page structure muscle memory | Low | Top placement is the expected UX pattern. Bottom was always unintuitive |
+| max-w-[1280px] makes sidebar look wider relatively on very large screens | Low | Sidebar is outside the content wrapper, unaffected |
+| Chart tooltip variable changes may have subtle colour differences on some monitors | Low | Test in both themes. Change is purely cosmetic |
+| Keyboard shortcuts may conflict with browser tab navigation in-browser | Low | Skip handler if a form input is focused. In installed PWA mode, no conflict |
+| Dark loan cards may conflict with user OS high-contrast mode | Low | Use CSS variables (same as Goals cards) not hardcoded hex |
+
+---
+
+## Summary Priority Matrix
+
+| Priority | Tasks | Reason |
+|---|---|---|
+| MUST first | D1, D2, D3 | Discoverability, sidebar quality, content width |
+| MUST | D7, D8, D9, D10 | Visible quality issues in light mode (chart tooltips, hover) |
+| HIGH | D11-D17 | Dashboard and Transactions are most-used pages |
+| HIGH | D18-D23 | Goals and Bills polish |
+| MEDIUM | D24-D28 | Settings, Insights, EmptyState component |
+| LOW | D29-D30 | Investments cosmetic polish |
+| ENHANCEMENT | D4, D6 | Keyboard shortcuts and sidebar toggle redesign |
+
+---
+
+*Plan authored via full codebase analysis of WealthMap desktop experience — 2026-08-15*

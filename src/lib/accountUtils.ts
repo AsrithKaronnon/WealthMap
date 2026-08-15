@@ -12,7 +12,8 @@
  *   transfer without destination (adjustment) → balance + amount (use negative to subtract)
  *
  * Credit cards store usage (amount owed) as a non-negative `balance`.
- * `computed_balance` mirrors `balance` for UI compatibility.
+ * Purchases (expense) increase usage; payoffs use a negative transfer adjustment
+ * (and funding expense on the bank account). `computed_balance` mirrors `balance`.
  */
 
 export interface AccountWithBalance {

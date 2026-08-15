@@ -508,8 +508,7 @@ export const Investments: React.FC = () => {
   const handleOpenPayoff = (acc: any) => {
     setPayoffAccount(acc);
     setPayoffAmount('');
-    const fundingAccounts = accounts.filter((a: any) => a.account_type !== 'Credit Card' && a.id !== acc.id);
-    setPayoffFromAccountId(fundingAccounts[0]?.id || '');
+    setPayoffFromAccountId('');
     setIsPayoffModalOpen(true);
   };
 
@@ -533,7 +532,7 @@ export const Investments: React.FC = () => {
       const label = `CC Payment: ${payoffAccount.name}`;
 
       // 1) Debit funding account (expense → trigger reduces bank balance)
-      const { error: bankErr } = await supabase.from('transactions').insert([{
+      const { data: bankRows, error: bankErr } = await supabase.from('transactions').insert([{
         date: today,
         amount,
         transaction_type_id: SEED.transaction_types.expense,
@@ -545,8 +544,9 @@ export const Investments: React.FC = () => {
         tags: ['Credit Card', 'Payment'],
         is_recurring: false,
         created_by: user.id
-      }]);
+      }]).select('id');
       if (bankErr) throw bankErr;
+      const bankTxId = bankRows?.[0]?.id;
 
       // 2) Reduce CC usage via adjustment (transfer, no destination, negative amount)
       const { error: ccErr } = await supabase.from('transactions').insert([{
@@ -563,7 +563,12 @@ export const Investments: React.FC = () => {
         is_recurring: false,
         created_by: user.id
       }]);
-      if (ccErr) throw ccErr;
+      if (ccErr) {
+        if (bankTxId) {
+          await supabase.from('transactions').update({ is_deleted: true }).eq('id', bankTxId);
+        }
+        throw ccErr;
+      }
 
       fetchInvestments();
       toast.success(`Successfully paid off ${currencySymbol}${amount.toLocaleString('en-IN')}`);
@@ -974,8 +979,8 @@ export const Investments: React.FC = () => {
           ) : accountsWithBalance.length === 0 ? (
             <div className="py-16 text-center border border-dashed border-border rounded-2xl flex flex-col justify-center items-center gap-3">
               <Banknote className="h-12 w-12 text-muted-foreground/40" />
-              <div className="text-sm font-semibold text-foreground">No accounts yet</div>
-              <p className="text-xs text-muted-foreground max-w-xs">Add an account to track bank and cash balances. Balances update automatically when you log transactions.</p>
+              <p className="text-sm text-muted-foreground max-w-xs">Add a bank or cash account to track balances.</p>
+              <Button size="sm" onClick={handleOpenAddAccount}>Add account</Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1005,6 +1010,12 @@ export const Investments: React.FC = () => {
                       </div>
                       {acc.account_type === 'Credit Card' && (
                         <div className="flex flex-col gap-1 items-end">
+                          <div className="flex flex-col gap-0.5 text-right">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Available credit</span>
+                            <span className="font-bold text-sm leading-none text-foreground">
+                              {currencySymbol}{Math.max(0, (acc.credit_limit || 0) - Math.abs(acc.computed_balance || 0)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </span>
+                          </div>
                           <div className="flex flex-col gap-0.5 text-right">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground">Total Limit</span>
                             <span className="font-bold text-sm leading-none text-muted-foreground">
@@ -1165,9 +1176,9 @@ export const Investments: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase">Pay From Account</label>
-                  <select value={formData.sip_account_id} onChange={(e) => setFormData({ ...formData, sip_account_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">
-                    <option value="">-- Select Account --</option>
-                    {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                  <select required={formData.is_sip} value={formData.sip_account_id} onChange={(e) => setFormData({ ...formData, sip_account_id: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">
+                    <option value="">Select account</option>
+                    {accounts.filter((acc: any) => acc.account_type !== 'Credit Card').map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -1377,19 +1388,19 @@ export const Investments: React.FC = () => {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-muted-foreground uppercase flex justify-between">
-              {accountForm.account_type !== 'Credit Card' ? 'Current Balance' : 'Total Credit Limit'}
+              {accountForm.account_type !== 'Credit Card' ? 'Current Balance (matches bank?)' : 'Total Credit Limit'}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-2.5 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
               <input type="number" inputMode="numeric" step="0.01" placeholder="0.00" value={accountForm.opening_balance} onChange={e => setAccountForm({ ...accountForm, opening_balance: e.target.value })} className={`${inp} pl-8`} />
             </div>
             {accountForm.account_type !== 'Credit Card' && (
-              <p className="text-[10px] text-muted-foreground mt-1 hidden sm:block">Sets the account balance directly. Day-to-day changes still come from transactions.</p>
+              <p className="text-[10px] text-muted-foreground mt-1 hidden sm:block">Matches bank? Set the balance to what your statement shows. Day-to-day changes still come from transactions.</p>
             )}
           </div>
           </div>
           {accountForm.account_type !== 'Credit Card' && (
-            <p className="text-[10px] text-muted-foreground -mt-2 sm:hidden">Sets the account balance directly. Day-to-day changes still come from transactions.</p>
+            <p className="text-[10px] text-muted-foreground -mt-2 sm:hidden">Matches bank? Set the balance to what your statement shows.</p>
           )}
 
           {accountForm.account_type === 'Credit Card' && (

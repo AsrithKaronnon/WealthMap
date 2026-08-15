@@ -6,7 +6,7 @@ import {
   Sun, Moon, Monitor, ShieldCheck, 
   User, 
   Trash2, ChevronDown, Plus, Minus, Sliders, X, ChevronUp, KeyRound,
-  Receipt, BarChart3, LogOut, Coins
+  BarChart3, LogOut, Coins, RefreshCw
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
@@ -416,16 +416,16 @@ export const Settings: React.FC = () => {
         <div className="md:hidden flex flex-col gap-2 mb-2">
           <button
             type="button"
-            onClick={() => navigate({ to: '/bills' })}
+            onClick={() => navigate({ to: '/money', search: { tab: 'recurring' } })}
             className="clay rounded-[1.2rem] p-4 flex items-center justify-between cursor-pointer min-h-[44px]"
           >
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                <Receipt className="h-5 w-5 text-amber-500" />
+                <RefreshCw className="h-5 w-5 text-amber-500" />
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-[14px] font-semibold text-foreground">Bills</span>
-                <span className="text-[11px] font-medium text-muted-foreground/60">Upcoming payments and loans due</span>
+                <span className="text-[14px] font-semibold text-foreground">Recurring</span>
+                <span className="text-[11px] font-medium text-muted-foreground/60">Templates and upcoming repeats</span>
               </div>
             </div>
             <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
