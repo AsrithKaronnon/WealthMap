@@ -424,15 +424,32 @@ export const Dashboard: React.FC = () => {
 
   const savingsRate     = curIncome > 0 ? Math.max(0, Math.round(((curIncome - curExpense) / curIncome) * 100)) : 0;
   
-  // Spending by category (donut)
+  // Spending by category (donut) — top categories + Other so total matches Spent card
   const spendByCategory = useMemo(() => {
     const map = new Map<string, number>();
-    filteredTxs.filter(t => t.transaction_type_id === SEED.transaction_types.expense).forEach(t => {
-      const cat = allCats.find(c => c.id === t.category_id);
-      const name = cat?.name || 'Other';
-      map.set(name, (map.get(name) || 0) + (parseFloat(t.amount) || 0));
-    });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value: Math.round(value) })).sort((a, b) => b.value - a.value).slice(0, 6);
+    filteredTxs
+      .filter((t) => t.transaction_type_id === SEED.transaction_types.expense)
+      .forEach((t) => {
+        const cat = allCats.find((c) => c.id === t.category_id);
+        const name = cat?.name || 'Other';
+        map.set(name, (map.get(name) || 0) + (parseFloat(t.amount) || 0));
+      });
+
+    const sorted = Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const fullTotal = sorted.reduce((s, c) => s + c.value, 0);
+
+    if (sorted.length <= 6) {
+      return sorted.map((c) => ({ name: c.name, value: Math.round(c.value) }));
+    }
+
+    const top = sorted.slice(0, 5).map((c) => ({ name: c.name, value: Math.round(c.value) }));
+    const topSum = top.reduce((s, c) => s + c.value, 0);
+    const otherValue = Math.max(0, Math.round(fullTotal) - topSum);
+    if (otherValue > 0) top.push({ name: 'Other', value: otherValue });
+    return top;
   }, [filteredTxs, allCats]);
   const totalSpend = spendByCategory.reduce((s, c) => s + c.value, 0);
 
