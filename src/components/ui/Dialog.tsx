@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 
@@ -25,6 +26,11 @@ export const Dialog: React.FC<DialogProps> = ({
   };
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,6 +47,9 @@ export const Dialog: React.FC<DialogProps> = ({
       setKeyboardInset(0);
       return;
     }
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     const updateInset = () => {
       const vv = window.visualViewport;
@@ -67,13 +76,16 @@ export const Dialog: React.FC<DialogProps> = ({
     vv?.addEventListener('scroll', updateInset);
     window.addEventListener('focusin', scrollFocusedIntoView);
     return () => {
+      document.body.style.overflow = prevOverflow;
       vv?.removeEventListener('resize', updateInset);
       vv?.removeEventListener('scroll', updateInset);
       window.removeEventListener('focusin', scrollFocusedIntoView);
     };
   }, [isOpen]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -83,32 +95,25 @@ export const Dialog: React.FC<DialogProps> = ({
             animate={{ opacity: 0.4 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm cursor-pointer"
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm cursor-pointer"
           />
 
-          {/* Dialog Container */}
+          {/* Dialog Container — viewport-fixed via portal (not trapped in sticky headers) */}
           <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none"
             style={{ paddingBottom: keyboardInset ? keyboardInset : undefined }}
           >
             <motion.div
-              initial={{ 
-                y: '100%', 
-                scale: 1 
-              }}
-              animate={{ 
-                y: 0, 
-                scale: 1 
-              }}
-              exit={{ 
-                y: '100%', 
-                scale: 0.95 
-              }}
-              transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
+              initial={{ y: '100%', opacity: 1 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 1 }}
+              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
               role="dialog"
               aria-modal="true"
-              aria-labelledby={title ? "dialog-title" : undefined}
+              aria-labelledby={title ? 'dialog-title' : undefined}
+              onClick={(e) => e.stopPropagation()}
               className={`
+                pointer-events-auto
                 w-full ${sizeClasses[size]} bg-card text-card-foreground clay
                 rounded-t-[1.5rem] sm:rounded-[1.5rem] flex flex-col max-h-[92vh] sm:max-h-[90vh]
                 pb-[env(safe-area-inset-bottom,12px)]
@@ -118,15 +123,19 @@ export const Dialog: React.FC<DialogProps> = ({
                 <span className="h-1 w-10 rounded-full bg-muted-foreground/25" />
               </div>
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0 gap-3">
                 {title ? (
-                  <h3 id="dialog-title" className="card-title">
+                  <h3 id="dialog-title" className="card-title min-w-0 truncate">
                     {title}
                   </h3>
-                ) : <div />}
+                ) : (
+                  <div />
+                )}
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="flex items-center justify-center min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-10 md:w-10 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+                  aria-label="Close"
+                  className="flex items-center justify-center min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-10 md:w-10 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -139,6 +148,7 @@ export const Dialog: React.FC<DialogProps> = ({
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

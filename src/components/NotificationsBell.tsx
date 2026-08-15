@@ -3,7 +3,6 @@ import { Bell, Check, ArrowRight, Inbox } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from '@tanstack/react-router';
 import { Dialog } from './ui/Dialog';
-import { Button } from './ui/Button';
 
 export function NotificationsBell({ className = '' }: { className?: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -109,9 +108,6 @@ export function NotificationsBell({ className = '' }: { className?: string }) {
                   <Inbox className="h-6 w-6 text-muted-foreground/50" />
                 </div>
                 <p className="text-sm text-muted-foreground">You're all caught up.</p>
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsOpen(false)}>
-                  Close
-                </Button>
               </div>
             ) : (
               notifications.map((notif) => (
