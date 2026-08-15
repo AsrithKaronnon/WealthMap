@@ -80,6 +80,10 @@ serve(async (req) => {
         .filter(a => !hiddenIds.includes(a.id) && a.account_type !== 'Credit Card')
         .reduce((sum, a) => sum + parseFloat(a.balance || 0), 0);
 
+      const creditCardUsage = (accounts || [])
+        .filter(a => !hiddenIds.includes(a.id) && a.account_type === 'Credit Card')
+        .reduce((sum, a) => sum + Math.abs(parseFloat(a.balance || 0)), 0);
+
       // 2. Calculate Assets
       const { data: assets } = await supabase
         .from('assets')
@@ -108,7 +112,15 @@ serve(async (req) => {
         }, 0);
       }
 
-      const networth = cash + totalAssets + totalInvestments;
+      const { data: loans } = await supabase
+        .from('loans')
+        .select('outstanding_amount')
+        .eq('created_by', userId)
+        .eq('is_deleted', false);
+
+      const totalLoans = (loans || []).reduce((sum, l) => sum + parseFloat(l.outstanding_amount || 0), 0);
+
+      const networth = cash + totalAssets + totalInvestments - creditCardUsage - totalLoans;
 
       // 4. Calculate Income & Spent for the current month
       const { data: transactions } = await supabase

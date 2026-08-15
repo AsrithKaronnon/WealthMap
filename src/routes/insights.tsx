@@ -41,7 +41,7 @@ export const Insights: React.FC = () => {
           { data: catData },
           { data: settings }
         ] = await Promise.all([
-          supabase.from('transactions').select('*').order('date', { ascending: false }),
+          supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
           supabase.from('budgets').select('*'),
           supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
           supabase.from('user_settings').select('currencies(symbol)').maybeSingle()

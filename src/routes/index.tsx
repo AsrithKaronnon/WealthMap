@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 're
 import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
+import { computeNetWorth } from '../lib/netWorth';
 import { useNavigate } from '@tanstack/react-router';
 import { Wallet, TrendingUp, Loader2, FileText, Receipt, Filter, ArrowDownToLine, CreditCard, Check, Plus, BarChart3 } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
@@ -83,10 +84,10 @@ export const Dashboard: React.FC = () => {
       try {
         const [{ data: accountsData }, { data: txData }, { data: billsData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: userData }, { data: assetsData }, { data: nwHistoryData }] = await Promise.all([
           supabase.from('accounts').select('*').order('name', { ascending: true }),
-          supabase.from('transactions').select('*').order('date', { ascending: false }),
+          supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
           supabase.from('bills').select('*').eq('status_id', SEED.statuses.pending).order('due_date', { ascending: true }).limit(10),
           supabase.from('goals').select('*'),
-          supabase.from('loans').select('*'),
+          supabase.from('loans').select('*').eq('is_deleted', false),
           supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
           supabase.from('investments').select('*'),
           supabase.from('user_settings').select('base_currency_id, hidden_asset_account_ids, currencies(symbol)').maybeSingle(),
@@ -181,7 +182,14 @@ export const Dashboard: React.FC = () => {
 
   const totalInvestments = investments.reduce((s, i) => s + (i.quantity * (livePrices[i.symbol] || 0)), 0);
   const totalAssets = assets.reduce((s, a) => s + parseFloat(a.current_value || 0), 0);
-  const totalNetWorth   = totalBalance + totalInvestments + totalAssets;
+  const totalLoans = loans.reduce((s, l) => s + parseFloat(l.outstanding_amount || 0), 0);
+  const totalNetWorth = computeNetWorth({
+    liquidCash: totalBalance,
+    investments: totalInvestments,
+    otherAssets: totalAssets,
+    creditCardUsage,
+    loansOutstanding: totalLoans,
+  });
 
   // Networth history chart and percentage
   const nwChartData = networthHistory.map(row => ({
@@ -506,18 +514,18 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
 
           {/* Spending by Category Donut */}
-          <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
+          <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Where You Spent</h3>
-                  <p className="text-xs text-white/70">For selected period</p>
+                  <h3 className="text-sm font-bold text-foreground">Where You Spent</h3>
+                  <p className="text-xs text-muted-foreground">For selected period</p>
                 </div>
-                <span className="text-xs font-bold text-white">{fmt(totalSpend, currencySymbol)}</span>
+                <span className="text-xs font-bold text-foreground">{fmt(totalSpend, currencySymbol)}</span>
               </div>
               {spendByCategory.length === 0 ? (
-                <div className="h-40 flex items-center justify-center border border-dashed border-white/20 rounded-xl">
-                  <p className="text-xs text-white/70">No expenses logged in this period</p>
+                <div className="h-40 flex items-center justify-center border border-dashed border-border rounded-xl">
+                  <p className="text-xs text-muted-foreground">No expenses logged in this period</p>
                 </div>
               ) : (
                 <div className="flex items-center gap-4">
@@ -527,7 +535,7 @@ export const Dashboard: React.FC = () => {
                         <Pie data={spendByCategory} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
                           {spendByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
-                        <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
+                        <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px', color: 'hsl(var(--foreground))' }} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -535,8 +543,8 @@ export const Dashboard: React.FC = () => {
                     {spendByCategory.map((cat, i) => (
                       <div key={cat.name} className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                        <span className="text-xs text-white truncate flex-1">{cat.name}</span>
-                        <span className="text-xs font-semibold text-white shrink-0">{fmt(cat.value, currencySymbol)}</span>
+                        <span className="text-xs text-foreground truncate flex-1">{cat.name}</span>
+                        <span className="text-xs font-semibold text-foreground shrink-0">{fmt(cat.value, currencySymbol)}</span>
                       </div>
                     ))}
                   </div>
@@ -546,27 +554,27 @@ export const Dashboard: React.FC = () => {
           </Card>
 
           {/* 6-Month Income vs Expenses Line Chart */}
-          <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
+          <Card>
             <CardContent className="p-4">
               <div className="mb-3">
-                <h3 className="text-sm font-bold text-white">Income vs Expenses</h3>
-                <p className="text-xs text-white/70">Last 6 months trend</p>
+                <h3 className="text-sm font-bold text-foreground">Income vs Expenses</h3>
+                <p className="text-xs text-muted-foreground">Last 6 months trend</p>
               </div>
               {sixMonthData.every(d => d.Income === 0 && d.Expenses === 0) ? (
-                <div className="h-40 flex items-center justify-center border border-dashed border-white/20 rounded-xl">
-                  <p className="text-xs text-white/70">No data in last 6 months</p>
+                <div className="h-40 flex items-center justify-center border border-dashed border-border rounded-xl">
+                  <p className="text-xs text-muted-foreground">No data in last 6 months</p>
                 </div>
               ) : (
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={sixMonthData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" opacity={0.1} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.7)' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.7)' }} tickFormatter={v => fmt(v, currencySymbol)} />
-                      <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
-                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: 'white' }} />
-                      <Line type="monotone" dataKey="Income" stroke="#34d399" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#34d399' }} activeDot={{ r: 5 }} />
-                      <Line type="monotone" dataKey="Expenses" stroke="#f87171" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#f87171' }} activeDot={{ r: 5 }} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => fmt(v, currencySymbol)} />
+                      <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px', color: 'hsl(var(--foreground))' }} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: 'hsl(var(--foreground))' }} />
+                      <Line type="monotone" dataKey="Income" stroke="#10b981" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#10b981' }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#ef4444' }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -579,49 +587,49 @@ export const Dashboard: React.FC = () => {
       {(goals.length > 0 || loans.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {goals.length > 0 && (
-            <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783] relative">
+            <Card className="relative">
               <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
-                <div className="text-xs font-bold text-white/70 uppercase whitespace-nowrap pr-2 border-r border-white/20 shrink-0">Goals</div>
+                <div className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap pr-2 border-r border-border shrink-0">Goals</div>
                 {goals.map(g => {
                   const pct = Math.min(100, Math.round(((parseFloat(g.current_amount)||0) / (parseFloat(g.target_amount)||1)) * 100));
                   return (
                     <div key={g.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
-                      <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-green-400">
-                        <span className="text-[9px] font-bold text-white">{pct}%</span>
+                      <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-emerald-500">
+                        <span className="text-[9px] font-bold text-foreground">{pct}%</span>
                       </ProgressCircle>
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold truncate max-w-[90px] text-white">{g.name}</span>
-                        <span className="text-[10px] text-white/70">{fmt(parseFloat(g.target_amount)||0, currencySymbol)}</span>
+                        <span className="text-xs font-bold truncate max-w-[90px] text-foreground">{g.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{fmt(parseFloat(g.target_amount)||0, currencySymbol)}</span>
                       </div>
                     </div>
                   );
                 })}
               </CardContent>
-              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#312783] to-transparent rounded-r-xl" />
+              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-card to-transparent rounded-r-xl" />
             </Card>
           )}
           {loans.length > 0 && (
-            <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783] relative">
+            <Card className="relative">
               <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
-                <div className="text-xs font-bold text-white/70 uppercase whitespace-nowrap pr-2 border-r border-white/20 shrink-0">Loans</div>
+                <div className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap pr-2 border-r border-border shrink-0">Loans</div>
                 {loans.map(l => {
                   const total = parseFloat(l.total_amount)||0;
                   const paid  = total - (parseFloat(l.outstanding_amount)||0);
                   const pct   = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
                   return (
                     <div key={l.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
-                      <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-red-400">
-                        <span className="text-[9px] font-bold text-white">{pct}%</span>
+                      <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-rose-500">
+                        <span className="text-[9px] font-bold text-foreground">{pct}%</span>
                       </ProgressCircle>
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold truncate max-w-[90px] text-white">{l.name}</span>
-                        <span className="text-[10px] text-white/70">{fmt(parseFloat(l.outstanding_amount)||0, currencySymbol)} left</span>
+                        <span className="text-xs font-bold truncate max-w-[90px] text-foreground">{l.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{fmt(parseFloat(l.outstanding_amount)||0, currencySymbol)} left</span>
                       </div>
                     </div>
                   );
                 })}
               </CardContent>
-              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-[#312783] to-transparent rounded-r-xl" />
+              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-card to-transparent rounded-r-xl" />
             </Card>
           )}
         </div>
@@ -645,39 +653,39 @@ export const Dashboard: React.FC = () => {
         </button>
       </div>
 
-      <Card className="bg-gradient-to-br from-[#5C4DFF] to-[#312783]">
+      <Card>
         <CardContent className="p-0">
-          <div className="p-3 sm:p-4 border-b border-white/10 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-white">Activity</h3>
-            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money' })} className="text-xs py-1 min-h-[44px] md:min-h-0 md:!h-7 border-white/20 text-white hover:bg-white/10">View All</Button>
+          <div className="p-3 sm:p-4 border-b border-border flex justify-between items-center">
+            <h3 className="text-sm font-bold text-foreground">Activity</h3>
+            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money' })} className="text-xs py-1 min-h-[44px] md:min-h-0 md:!h-7">View All</Button>
           </div>
           <div className="p-2">
             {activityFeed.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8">
-                <FileText className="h-9 w-9 text-white/30 mb-2" />
-                <p className="text-sm font-semibold text-white mb-1">No activity for this period</p>
-                <p className="text-xs text-white/70 text-center px-4 mb-3">Try changing the filter or log a new transaction.</p>
-                <Button size="sm" onClick={() => navigate({ to: '/money' })} className="bg-white text-indigo-900 hover:bg-white/90">Log Transaction</Button>
+                <FileText className="h-9 w-9 text-muted-foreground/40 mb-2" />
+                <p className="text-sm font-semibold text-foreground mb-1">No activity for this period</p>
+                <p className="text-xs text-muted-foreground text-center px-4 mb-3">Try changing the filter or log a new transaction.</p>
+                <Button size="sm" onClick={() => navigate({ to: '/money' })}>Log Transaction</Button>
               </div>
             ) : (
               <div className="flex flex-col">
                 {activityFeed.map(item => (
-                  <div key={item.id} className="flex items-center justify-between px-2 py-2.5 min-h-[44px] hover:bg-white/5 rounded-xl transition-colors">
+                  <div key={item.id} className="flex items-center justify-between px-2 py-2.5 min-h-[44px] hover:bg-muted/50 rounded-xl transition-colors">
                     <div className="flex items-center gap-2.5 flex-1 min-w-0 mr-2">
-                      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${item.type === 'bill' ? 'bg-amber-500/20 text-amber-300' : item.isIncome ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${item.type === 'bill' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300' : item.isIncome ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-600 dark:text-rose-300'}`}>
                         {item.type === 'bill' ? <Receipt className="h-3.5 w-3.5" /> : item.isIncome ? <TrendingUp className="h-3.5 w-3.5" /> : <Wallet className="h-3.5 w-3.5" />}
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-semibold text-white truncate">{item.title}</span>
-                        <span className="text-xs text-white/70">{item.type === 'bill' ? <span className="text-amber-300 font-medium">Bill due · </span> : ''}{relDate(item.date)}</span>
+                        <span className="text-sm font-semibold text-foreground truncate">{item.title}</span>
+                        <span className="text-xs text-muted-foreground">{item.type === 'bill' ? <span className="text-amber-600 dark:text-amber-300 font-medium">Bill due · </span> : ''}{relDate(item.date)}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-sm font-bold font-mono ${item.type === 'bill' ? 'text-amber-300' : item.isIncome ? 'text-green-300' : 'text-white'}`}>
+                      <span className={`text-sm font-bold font-mono ${item.type === 'bill' ? 'text-amber-600 dark:text-amber-300' : item.isIncome ? 'text-emerald-600 dark:text-emerald-300' : 'text-foreground'}`}>
                         {item.isIncome && item.type !== 'bill' ? '+' : '-'}{fmt(item.amount, currencySymbol)}
                       </span>
                       {item.type === 'bill' && (
-                        <Button size="sm" variant="outline" className="min-h-[44px] h-11 px-3 text-xs md:min-h-0 md:!h-6 md:text-[10px] md:px-2 md:py-0 border-white/20 text-white hover:bg-white/10" onClick={() => navigate({ to: '/bills' })}>Pay</Button>
+                        <Button size="sm" variant="outline" className="min-h-[44px] h-11 px-3 text-xs md:min-h-0 md:!h-6 md:text-[10px] md:px-2 md:py-0" onClick={() => navigate({ to: '/bills' })}>Pay</Button>
                       )}
                     </div>
                   </div>

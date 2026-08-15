@@ -42,6 +42,7 @@ export const Bills: React.FC = () => {
 
   // Pay Modal State
   const [payingItem, setPayingItem] = useState<any | null>(null);
+  const [payAccountId, setPayAccountId] = useState<string>('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -187,8 +188,9 @@ export const Bills: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Authentication required");
 
-      // Regular Bill: Update bill status to paid
-      // If not recurring, mark inactive
+      const fundingAccountId = payAccountId || payingItem.account_id || accounts.find((a: any) => a.account_type !== 'Credit Card')?.id || accounts[0]?.id;
+      if (!fundingAccountId) throw new Error('No funding account available');
+
       const updates: any = { status_id: SEED.statuses.paid };
       if (payingItem.recurrence_type_id === SEED.recurrences.one_time) {
         updates.is_active = false;
@@ -219,7 +221,7 @@ export const Bills: React.FC = () => {
             due_date: nextDate.toISOString().split('T')[0],
             status_id: SEED.statuses.pending,
             recurrence_type_id: payingItem.recurrence_type_id,
-            account_id: payingItem.account_id,
+            account_id: payingItem.account_id || fundingAccountId,
             is_active: true,
             notes: payingItem.notes,
             created_by: user.id
@@ -228,23 +230,32 @@ export const Bills: React.FC = () => {
         }
       }
 
-      // Record a transaction
+      const billTypeToCategory: Record<string, string> = {
+        [SEED.bill_types.electricity]: SEED.expense_categories.utilities,
+        [SEED.bill_types.internet]: SEED.expense_categories.utilities,
+        [SEED.bill_types.water]: SEED.expense_categories.utilities,
+        [SEED.bill_types.gas]: SEED.expense_categories.utilities,
+        [SEED.bill_types.rent]: SEED.expense_categories.housing,
+        [SEED.bill_types.subscription]: SEED.expense_categories.entertainment,
+      };
+
       const newTx = {
         date: new Date().toISOString().split('T')[0],
         amount: payingItem.amount,
         transaction_type_id: SEED.transaction_types.expense,
-        category_id: SEED.expense_categories.utilities,
-        account_id: accounts[0].id,
+        category_id: billTypeToCategory[payingItem.bill_type_id] || SEED.expense_categories.utilities,
+        account_id: fundingAccountId,
         payment_method_id: SEED.payment_methods.debit_card,
         merchant: payingItem.name,
         notes: `Paid Bill: ${payingItem.name}`,
-        tags: ['Essential'],
-        is_recurring: true,
+        tags: ['Bill'],
+        is_recurring: false,
         created_by: user.id
       };
       await supabase.from('transactions').insert([newTx]);
 
       setPayingItem(null);
+      setPayAccountId('');
       fetchData();
       toast.success('Payment recorded');
     } catch (err) {
@@ -399,7 +410,10 @@ export const Bills: React.FC = () => {
                     </span>
                     {!isPaid ? (
                       <Button
-                        onClick={() => setPayingItem(p)}
+                        onClick={() => {
+                          setPayingItem(p);
+                          setPayAccountId(p.account_id || accounts.find((a: any) => a.account_type !== 'Credit Card')?.id || accounts[0]?.id || '');
+                        }}
                         size="sm"
                         className="py-1 px-3 text-xs cursor-pointer flex items-center gap-1 shrink-0 min-h-[44px] sm:min-h-[40px]"
                       >
@@ -565,6 +579,20 @@ export const Bills: React.FC = () => {
           <div className="flex justify-between items-center text-xs font-bold text-foreground border-b border-border/40 pb-3">
             <span>Bill Amount:</span>
             <span className="font-mono text-base">{currencySymbol}{payingItem ? (parseFloat(payingItem.amount) || 0).toFixed(0) : '0'}</span>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-muted-foreground">Pay From Account</label>
+            <select
+              value={payAccountId}
+              onChange={e => setPayAccountId(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/45"
+            >
+              <option value="">Select account</option>
+              {accounts.map((a: any) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
           </div>
 
           {payingItem?.is_loan && (

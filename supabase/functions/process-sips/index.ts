@@ -64,19 +64,41 @@ serve(async (req) => {
         // 2. Calculate Units
         const unitsToBuy = sip.sip_amount / nav;
 
-        // 3. Create Transaction (deduct money)
+        // 3. Create Transaction (deduct money) — trigger updates account balance
+        const ownerId = sip.user_id || sip.created_by;
+        const dueDate = today.toISOString().split('T')[0];
+
+        // Idempotency: skip if SIP expense already logged today for this investment
+        const { data: existingSipTx } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("account_id", sip.sip_account_id)
+          .eq("date", dueDate)
+          .eq("amount", sip.sip_amount)
+          .eq("is_deleted", false)
+          .contains("tags", ["SIP"])
+          .ilike("merchant", `SIP: ${sip.name}`)
+          .limit(1);
+
+        if (existingSipTx && existingSipTx.length > 0) {
+          results.push({ id: sip.id, status: "skipped", reason: "already_processed_today" });
+          continue;
+        }
+
         const { data: transaction, error: txError } = await supabase
           .from("transactions")
           .insert({
             amount: sip.sip_amount,
-            date: today.toISOString().split('T')[0],
+            date: dueDate,
             merchant: `SIP: ${sip.name}`,
             notes: `Auto SIP of ${sip.sip_amount} at NAV ${nav} (Bought ${unitsToBuy.toFixed(4)} units)`,
             account_id: sip.sip_account_id,
-            transaction_type_id: "t0000000-0000-0000-0000-000000000002", // Expense/Transfer
-            payment_method_id: "m0000000-0000-0000-0000-000000000001", // Bank Transfer
+            transaction_type_id: "t0000000-0000-0000-0000-000000000002",
+            payment_method_id: "m0000000-0000-0000-0000-000000000001",
             tags: ["SIP", "Auto"],
-            user_id: sip.user_id,
+            user_id: ownerId,
+            created_by: ownerId,
+            is_recurring: false,
           })
           .select()
           .single();
@@ -100,7 +122,7 @@ serve(async (req) => {
           action_url: "/money",
           reference_id: transaction.id,
           reference_type: "transaction",
-          user_id: sip.user_id
+          user_id: ownerId
         });
 
         results.push({ id: sip.id, status: "success", unitsBought: unitsToBuy });

@@ -1,24 +1,19 @@
 /**
  * accountUtils.ts
  *
- * Utility for computing live account balances from transactions (Option A).
+ * Display helpers for account balances (Option B).
  *
- * Balance formula per account:
- *   computed_balance = opening_balance
- *                    + SUM(income transactions where account_id = this account)
- *                    - SUM(expense transactions where account_id = this account)
- *                    - SUM(transfer_out where account_id = this account)
- *                    + SUM(transfer_in where transfer_to_account_id = this account)
+ * Live balances live in `accounts.balance` and are maintained by the DB trigger
+ * `update_account_balance_on_transaction` (see supabase/migrations/20260815_balance_triggers.sql).
  *
- * This is the single source of truth. The `balance` column on accounts is
- * legacy and no longer used for display. `opening_balance` is the starting
- * balance before any tracked transaction.
+ *   income  → balance + amount
+ *   expense → balance - amount
+ *   transfer with destination → source -, destination +
+ *   transfer without destination (adjustment) → balance + amount (use negative to subtract)
+ *
+ * Credit cards store usage (amount owed) as a non-negative `balance`.
+ * `computed_balance` mirrors `balance` for UI compatibility.
  */
-
-// Transaction type IDs — must match SEED values in supabaseMock.ts
-const INCOME_TYPE   = 't0000000-0000-0000-0000-000000000001';
-const EXPENSE_TYPE  = 't0000000-0000-0000-0000-000000000002';
-const TRANSFER_TYPE = 't0000000-0000-0000-0000-000000000003';
 
 export interface AccountWithBalance {
   id: string;
@@ -29,8 +24,8 @@ export interface AccountWithBalance {
 }
 
 /**
- * Given raw accounts and all transactions, returns accounts enriched with
- * a `computed_balance` field reflecting the true current balance.
+ * Enrich accounts with computed_balance for display.
+ * Under Option B this is the trigger-maintained `accounts.balance`.
  */
 export function computeAccountBalances(
   accounts: any[],
@@ -38,10 +33,12 @@ export function computeAccountBalances(
 ): AccountWithBalance[] {
   return accounts.map(account => {
     const bal = parseFloat(account.balance ?? 0);
+    const isCC = account.account_type === 'Credit Card';
+    const usageOrBalance = isCC ? Math.abs(bal) : bal;
     return {
       ...account,
-      opening_balance: bal,
-      computed_balance: bal,
+      opening_balance: usageOrBalance,
+      computed_balance: usageOrBalance,
     };
   });
 }

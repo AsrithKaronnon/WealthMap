@@ -23,11 +23,12 @@ serve(async (req) => {
       
     if (log) logId = log.id;
 
-    // Fetch recurring transactions that are due to be processed today or earlier
+    // Fetch recurring templates that are due (skip soft-deleted)
     const { data: recurringTxs, error: fetchError } = await supabase
       .from("transactions")
       .select("*")
       .eq("is_recurring", true)
+      .eq("is_deleted", false)
       .lte("next_recurring_date", todayStr);
 
     if (fetchError) throw fetchError;
@@ -42,26 +43,45 @@ serve(async (req) => {
 
     for (const tx of recurringTxs) {
       try {
-        // 1. Create a duplicate transaction for today
-        const newTx = {
-          amount: tx.amount,
-          date: tx.next_recurring_date, // Log it for the date it was due
-          merchant: tx.merchant,
-          notes: `${tx.notes ? tx.notes + ' ' : ''}(Auto-Recurring)`,
-          account_id: tx.account_id,
-          transaction_type_id: tx.transaction_type_id,
-          category_id: tx.category_id,
-          payment_method_id: tx.payment_method_id,
-          transfer_to_account_id: tx.transfer_to_account_id,
-          tags: tx.tags,
-          is_recurring: false, // The child transaction is not recurring itself
-          user_id: tx.user_id
-        };
+        const ownerId = tx.created_by || tx.user_id;
 
-        const { error: insertError } = await supabase.from("transactions").insert([newTx]);
-        if (insertError) throw insertError;
+        // Idempotency: skip if a child for this due date already exists
+        const { data: existing } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("account_id", tx.account_id)
+          .eq("amount", tx.amount)
+          .eq("date", tx.next_recurring_date)
+          .eq("merchant", tx.merchant)
+          .eq("is_recurring", false)
+          .eq("is_deleted", false)
+          .ilike("notes", "%(Auto-Recurring)%")
+          .limit(1);
 
-        // 2. Calculate the next recurring date for the parent template
+        if (existing && existing.length > 0) {
+          // Still advance next date so we don't loop forever
+        } else {
+          const newTx = {
+            amount: tx.amount,
+            date: tx.next_recurring_date,
+            merchant: tx.merchant,
+            notes: `${tx.notes ? tx.notes + ' ' : ''}(Auto-Recurring)`,
+            account_id: tx.account_id,
+            transaction_type_id: tx.transaction_type_id,
+            category_id: tx.category_id,
+            payment_method_id: tx.payment_method_id,
+            transfer_to_account_id: tx.transfer_to_account_id,
+            tags: tx.tags,
+            is_recurring: false,
+            created_by: ownerId,
+            user_id: ownerId
+          };
+
+          const { error: insertError } = await supabase.from("transactions").insert([newTx]);
+          if (insertError) throw insertError;
+        }
+
+        // Calculate the next recurring date for the parent template
         const nextDate = new Date(tx.next_recurring_date);
         const interval = tx.recurrence_interval?.toLowerCase();
 
@@ -74,13 +94,11 @@ serve(async (req) => {
         } else if (interval === 'yearly') {
           nextDate.setFullYear(nextDate.getFullYear() + 1);
         } else {
-          // Default to Monthly
           nextDate.setMonth(nextDate.getMonth() + 1);
         }
 
         const nextDateStr = nextDate.toISOString().split('T')[0];
 
-        // 3. Update the parent transaction's next_recurring_date
         const { error: updateError } = await supabase
           .from("transactions")
           .update({ next_recurring_date: nextDateStr })
@@ -88,16 +106,17 @@ serve(async (req) => {
 
         if (updateError) throw updateError;
 
-        // 4. Create Notification
-        await supabase.from("notifications").insert({
-          title: "Recurring Transaction Logged",
-          message: `Automated transaction for ${tx.merchant} was processed.`,
-          type: "automation",
-          action_url: "/money",
-          reference_id: tx.id,
-          reference_type: "transaction",
-          user_id: tx.user_id
-        });
+        if (ownerId) {
+          await supabase.from("notifications").insert({
+            title: "Recurring Transaction Logged",
+            message: `Automated transaction for ${tx.merchant} was processed.`,
+            type: "automation",
+            action_url: "/money",
+            reference_id: tx.id,
+            reference_type: "transaction",
+            user_id: ownerId
+          });
+        }
 
         results.push({ id: tx.id, status: "success", generatedFor: tx.next_recurring_date, nextDate: nextDateStr });
       } catch (e: any) {

@@ -100,7 +100,7 @@ export const Transactions: React.FC = () => {
         { data: incCatData },
         { data: settingsData }
       ] = await Promise.all([
-        supabase.from('transactions').select('*'),
+        supabase.from('transactions').select('*').eq('is_deleted', false),
         supabase.from('accounts').select('*').order('name', { ascending: true }),
         supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
         supabase.from('income_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
@@ -276,15 +276,25 @@ export const Transactions: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      let payload = {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      let payload: any = {
         ...formData,
-        payment_method_id: SEED.payment_methods.debit_card
+        payment_method_id: SEED.payment_methods.debit_card,
+        created_by: user.id
       };
       
       if (payload.transaction_type_id === SEED.transaction_types.transfer) {
         payload.category_id = null as any;
+        if (!payload.account_id) throw new Error('Select a source account');
+        if (!payload.transfer_to_account_id) throw new Error('Select a destination account');
+        if (payload.account_id === payload.transfer_to_account_id) {
+          throw new Error('Source and destination accounts must be different');
+        }
       } else {
         payload.transfer_to_account_id = null as any;
+        if (!payload.account_id) throw new Error('Select an account');
       }
 
       // Sanitize empty strings to null for UUIDs
@@ -301,34 +311,29 @@ export const Transactions: React.FC = () => {
         else if (interval === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
         else nextDate.setMonth(nextDate.getMonth() + 1);
         
-        // @ts-ignore
         payload.next_recurring_date = nextDate.toISOString().split('T')[0];
       } else {
-        // @ts-ignore
         payload.next_recurring_date = null;
       }
 
       if (receiptFile) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const fileExt = receiptFile.name.split('.').pop();
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const filePath = `${user.id}/${fileName}`;
+        const fileExt = receiptFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(filePath, receiptFile);
           
-          const { error: uploadError } = await supabase.storage
+        if (uploadError) {
+          console.error('Receipt upload error:', uploadError);
+          toast.error('Failed to upload receipt, saving without it.');
+        } else {
+          const { data: urlData } = supabase.storage
             .from('receipts')
-            .upload(filePath, receiptFile);
-            
-          if (uploadError) {
-            console.error('Receipt upload error:', uploadError);
-            toast.error('Failed to upload receipt, saving without it.');
-          } else {
-            const { data: urlData } = supabase.storage
-              .from('receipts')
-              .getPublicUrl(filePath);
-            
-            (payload as any).receipt_url = urlData.publicUrl;
-          }
+            .getPublicUrl(filePath);
+          
+          payload.receipt_url = urlData.publicUrl;
         }
       }
 
@@ -454,12 +459,16 @@ export const Transactions: React.FC = () => {
   const handleDelete = (id: string) => {
     confirm({
       title: 'Delete Transaction',
-      description: 'Remove this transaction record?',
+      description: 'Remove this transaction record? Account balances will be reversed automatically.',
       destructive: true,
       confirmText: 'Delete',
       onConfirm: async () => {
         try {
-          await supabase.from('transactions').delete().eq('id', id);
+          const { error } = await supabase
+            .from('transactions')
+            .update({ is_deleted: true })
+            .eq('id', id);
+          if (error) throw error;
           fetchData();
           toast.success('Transaction deleted');
         } catch (err) {
@@ -470,10 +479,14 @@ export const Transactions: React.FC = () => {
   };
 
   const handleExportCSV = () => {
-    const headers = 'Date,Description,Amount,Type\n';
+    const headers = 'Date,Description,Amount,Type,Account\n';
     const rows = transactions.map(tx => {
-      const type = tx.transaction_type_id === SEED.transaction_types.income ? 'Income' : 'Spend';
-      return `"${tx.date}","${tx.merchant.replace(/"/g, '""')}",${tx.amount},"${type}"`;
+      const type =
+        tx.transaction_type_id === SEED.transaction_types.income ? 'Income'
+        : tx.transaction_type_id === SEED.transaction_types.transfer ? 'Transfer'
+        : 'Spend';
+      const accName = accounts.find(a => a.id === tx.account_id)?.name || '';
+      return `"${tx.date}","${(tx.merchant || '').replace(/"/g, '""')}",${tx.amount},"${type}","${accName.replace(/"/g, '""')}"`;
     }).join('\n');
     
     const blob = new Blob([headers + rows], { type: 'text/csv' });
@@ -483,7 +496,6 @@ export const Transactions: React.FC = () => {
     a.download = `my_finance_helper_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     
-    // Fix memory leak
     setTimeout(() => {
       URL.revokeObjectURL(url);
     }, 100);
