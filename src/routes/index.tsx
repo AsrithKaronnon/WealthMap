@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
@@ -6,6 +6,7 @@ import { computeNetWorth } from '../lib/netWorth';
 import { useNavigate } from '@tanstack/react-router';
 import { Wallet, TrendingUp, Loader2, FileText, Filter, ArrowDownToLine, CreditCard, Check, Plus, BarChart3, ArrowLeftRight, ChevronDown, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
+import { MobileProfileButton } from '../components/ui/MobileProfileButton';
 import { Card, CardContent } from '../components/ui/Card';
 import { ProgressCircle } from '../components/ui/ProgressCircle';
 import { Button } from '../components/ui/Button';
@@ -28,15 +29,8 @@ const TIME_FILTERS = [
 const fmt = (n: number, sym: string) =>
   `${sym}${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
-const greetingFor = (name: string) => {
-  const hrs = new Date().getHours();
-  const g = hrs < 12 ? 'Good morning' : hrs < 18 ? 'Good afternoon' : 'Good evening';
-  return `${g}, ${name.split(' ')[0]}!`;
-};
-
 export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('User');
   const [accounts, setAccounts] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
@@ -80,19 +74,6 @@ export const Dashboard: React.FC = () => {
   const hideAmt = (shown: string) => (nwVisible ? shown : '••••••');
 
   const navigate = useNavigate();
-  const greetingRef = useRef<HTMLSpanElement>(null);
-  const greetingText = greetingFor(userName);
-
-  useLayoutEffect(() => {
-    const el = greetingRef.current;
-    if (!el) return;
-    let size = 16;
-    el.style.fontSize = `${size}px`;
-    while (el.scrollWidth > el.clientWidth && size > 11) {
-      size -= 0.5;
-      el.style.fontSize = `${size}px`;
-    }
-  }, [greetingText, loading]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -106,7 +87,7 @@ export const Dashboard: React.FC = () => {
     const load = async () => {
       setLoading(true);
       try {
-        const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: userData }, { data: assetsData }, { data: nwHistoryData }] = await Promise.all([
+        const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: assetsData }, { data: nwHistoryData }] = await Promise.all([
           supabase.from('accounts').select('*').order('name', { ascending: true }),
           supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
           supabase.from('goals').select('*'),
@@ -114,19 +95,9 @@ export const Dashboard: React.FC = () => {
           supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
           supabase.from('investments').select('*'),
           supabase.from('user_settings').select('base_currency_id, hidden_asset_account_ids, currencies(symbol)').maybeSingle(),
-          supabase.auth.getUser(),
           supabase.from('assets').select('*').eq('is_deleted', false),
           supabase.from('networth_history').select('*').order('date', { ascending: true })
         ]);
-
-        if (userData?.user) {
-          const meta = userData.user.user_metadata;
-          if (meta && (meta.first_name || meta.last_name)) {
-            setUserName(`${meta.first_name || ''} ${meta.last_name || ''}`.trim());
-          } else {
-            setUserName(userData.user.email?.split('@')[0] || 'User');
-          }
-        }
 
         let finalAccounts = accountsData;
         if (accountsData && accountsData.length === 0) {
@@ -522,14 +493,9 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
 
-      {/* Mobile-only Header with Greeting and Filter */}
-      <div className="md:hidden sticky -top-3 z-30 -mx-3 px-3 pb-3 -mt-3 mb-2 flex items-center gap-2 bg-background/95 backdrop-blur-md border-b border-border/40" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
-        <span
-          ref={greetingRef}
-          className="min-w-0 flex-1 font-semibold text-foreground whitespace-nowrap leading-none"
-        >
-          {greetingText}
-        </span>
+      {/* Mobile header: profile left, actions right */}
+      <div className="md:hidden sticky -top-3 z-30 -mx-3 px-3 pb-3 -mt-3 mb-2 flex items-center justify-between gap-2 bg-background/95 backdrop-blur-md border-b border-border/40" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
+        <MobileProfileButton />
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"

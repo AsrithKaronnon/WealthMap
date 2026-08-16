@@ -13,6 +13,7 @@ import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
 import { Skeleton } from '../components/ui/Skeleton';
 import { mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
+import { MobileProfileButton } from '../components/ui/MobileProfileButton';
 import { MoveMoneySheet, type MoveMoneyPrefill } from '../components/MoveMoneySheet';
 
 export const Transactions: React.FC = () => {
@@ -609,8 +610,9 @@ export const Transactions: React.FC = () => {
       
       {/* Mobile sticky page header + quick add */}
       <div className="md:hidden sticky top-0 z-30 -mx-3 bg-background/90 backdrop-blur-md border-b border-border/40">
-        <div className="px-3 h-12 flex items-center justify-between gap-2">
-          <span className="text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">Transactions</span>
+        <div className="px-3 h-12 flex items-center gap-2">
+          <MobileProfileButton className="!h-10 !w-10 text-[12px]" />
+          <span className="min-w-0 flex-1 text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">Transactions</span>
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={handleExportCSV} aria-label="Export" className={`${mobileHeaderIconBtn} clay-btn`}>
               <Download className="h-4 w-4" />

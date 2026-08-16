@@ -362,7 +362,7 @@ export const Settings: React.FC = () => {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       
-      <MobilePageHeader title="Settings" />
+      <MobilePageHeader title="Settings" hideProfile />
 
       {/* Title */}
       <div className="hidden md:block select-none mb-2">

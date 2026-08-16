@@ -497,10 +497,10 @@ export const RootLayout: React.FC = () => {
       </div>
 
       <nav className="md:hidden mobile-bottom-nav clay fixed bottom-0 left-0 right-0 flex items-stretch px-1 pt-1 pb-[max(6px,env(safe-area-inset-bottom,0px))] z-40 select-none">
-        {navigationItems.map((item) => {
+        {navigationItems.filter((item) => item.path !== '/settings').map((item) => {
           const Icon = item.icon;
           const isActive = routerState.location.pathname === item.path;
-          const shortLabel = item.path === '/money' ? 'Money' : item.path === '/goals' ? 'Goals' : item.path === '/settings' ? 'More' : item.label;
+          const shortLabel = item.path === '/money' ? 'Money' : item.path === '/goals' ? 'Goals' : item.label;
           return (
             <Link
               key={item.path}
