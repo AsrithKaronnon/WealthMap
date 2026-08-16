@@ -6,7 +6,7 @@ import {
   Sun, Moon, Monitor, ShieldCheck, 
   User, 
   Trash2, ChevronDown, Plus, Minus, Sliders, X, ChevronUp, KeyRound,
-  BarChart3, LogOut, Coins, RefreshCw
+  BarChart3, LogOut
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
@@ -18,8 +18,6 @@ export const Settings: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [currency, setCurrency] = useState('USD');
   const [currencies, setCurrencies] = useState<any[]>([]);
-  const [currencyMsg, setCurrencyMsg] = useState('');
-  const [currencyLoading, setCurrencyLoading] = useState(false);
   // App Lock State
   const [appPin, setAppPin] = useState(localStorage.getItem('app_pin') || '');
   const [pinInput, setPinInput] = useState('');
@@ -198,28 +196,6 @@ export const Settings: React.FC = () => {
       root.classList.add(systemTheme);
     } else {
       root.classList.add(newTheme);
-    }
-  };
-
-  const handleCurrencyChange = async (id: string) => {
-    const prev = currency;
-    setCurrency(id);
-    setCurrencyLoading(true);
-    setCurrencyMsg('');
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('user_settings')
-        .update({ base_currency_id: id })
-        .eq('created_by', user.id);
-      if (error) throw error;
-      setCurrencyMsg('Currency saved. Reload pages to see updated symbols.');
-      setTimeout(() => setCurrencyMsg(''), 4000);
-    } catch (err: any) {
-      setCurrency(prev);
-      setCurrencyMsg(`Error: ${err.message || 'Could not save currency'}`);
-    } finally {
-      setCurrencyLoading(false);
     }
   };
 
@@ -413,40 +389,22 @@ export const Settings: React.FC = () => {
           <ChevronDown className={`h-5 w-5 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'profile' ? '' : '-rotate-90'}`} />
         </div>
 
-        <div className="md:hidden flex flex-col gap-2 mb-2">
-          <button
-            type="button"
-            onClick={() => navigate({ to: '/money', search: { tab: 'recurring' } })}
-            className="clay rounded-[1.2rem] p-4 flex items-center justify-between cursor-pointer min-h-[44px]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                <RefreshCw className="h-5 w-5 text-amber-500" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-[14px] font-semibold text-foreground">Recurring</span>
-                <span className="text-[11px] font-medium text-muted-foreground/60">Templates and upcoming repeats</span>
-              </div>
+        <button
+          type="button"
+          onClick={() => navigate({ to: '/insights' })}
+          className="clay rounded-[1.2rem] p-4 flex items-center justify-between cursor-pointer min-h-[44px] mb-2"
+        >
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <BarChart3 className="h-5 w-5 text-emerald-500" />
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate({ to: '/insights' })}
-            className="clay rounded-[1.2rem] p-4 flex items-center justify-between cursor-pointer min-h-[44px]"
-          >
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <BarChart3 className="h-5 w-5 text-emerald-500" />
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-[14px] font-semibold text-foreground">Insights</span>
-                <span className="text-[11px] font-medium text-muted-foreground/60">Spending, cash flow, and budgets</span>
-              </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[14px] font-semibold text-foreground">Insights</span>
+              <span className="text-[11px] font-medium text-muted-foreground/60">Spending, cash flow, and budgets</span>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
-          </button>
-        </div>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground/50 -rotate-90" />
+        </button>
 
         {/* PROFILE SETTINGS */}
         <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
@@ -677,50 +635,6 @@ export const Settings: React.FC = () => {
                   </Button>
                 </div>
               </form>
-            </div>
-          )}
-        </div>
-
-        {/* CURRENCY */}
-        <div className="clay rounded-[1.2rem] overflow-hidden flex flex-col transition-colors">
-          <div onClick={() => setActiveSection(activeSection === 'currency' ? null : 'currency')} className="p-4 flex items-center justify-between cursor-pointer hover:bg-accent/50 min-h-[44px]">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-teal-500/10 flex items-center justify-center shrink-0">
-                <Coins className="h-5 w-5 text-teal-500" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[14px] font-semibold text-foreground">Currency</span>
-                <span className="text-[11px] font-medium text-muted-foreground/60">
-                  {currencies.find((c: any) => c.id === currency)?.code || currencies.find((c: any) => c.id === currency)?.symbol || 'Display currency'}
-                </span>
-              </div>
-            </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${activeSection === 'currency' ? '' : '-rotate-90'}`} />
-          </div>
-          {activeSection === 'currency' && (
-            <div className="p-4 border-t border-border/50 bg-muted/10 flex flex-col gap-3">
-              {currencyMsg && (
-                <div className={`p-3 rounded-lg border text-xs font-semibold ${
-                  currencyMsg.startsWith('Error')
-                    ? 'bg-destructive/10 border-destructive/25 text-destructive'
-                    : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-500'
-                }`}>
-                  {currencyMsg}
-                </div>
-              )}
-              <select
-                value={currency}
-                disabled={currencyLoading}
-                onChange={(e) => handleCurrencyChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/45"
-              >
-                {currencies.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code ? `${c.code} (${c.symbol})` : c.symbol || c.name || c.id}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-muted-foreground">This updates the symbol used across the app. It does not convert historical amounts.</p>
             </div>
           )}
         </div>

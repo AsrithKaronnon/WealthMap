@@ -944,9 +944,9 @@ export const Dashboard: React.FC = () => {
           </Card>
       </div>
 
-      {/* ── GOALS & LOANS ROW ── */}
+      {/* ── GOALS & LOANS ── */}
       {(goals.length > 0 || loans.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3">
           {goals.length > 0 && (
             <Card className="relative">
               <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
@@ -970,27 +970,54 @@ export const Dashboard: React.FC = () => {
             </Card>
           )}
           {loans.length > 0 && (
-            <Card className="relative">
-              <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
-                <div className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap pr-2 border-r border-border shrink-0">Loans</div>
-                {loans.map(l => {
-                  const total = parseFloat(l.total_amount)||0;
-                  const paid  = total - (parseFloat(l.outstanding_amount)||0);
-                  const pct   = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
-                  return (
-                    <div key={l.id} className="flex items-center gap-2 min-w-max cursor-pointer" onClick={() => navigate({ to: '/goals' })}>
-                      <ProgressCircle value={pct} size={34} strokeWidth={3} className="text-rose-500">
-                        <span className="text-[9px] font-bold text-foreground">{pct}%</span>
-                      </ProgressCircle>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold truncate max-w-[90px] text-foreground">{l.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{fmt(parseFloat(l.outstanding_amount)||0, currencySymbol)} left</span>
-                      </div>
-                    </div>
-                  );
-                })}
+            <Card className="relative w-full overflow-hidden">
+              <CardContent className="p-3 sm:p-4 flex flex-col gap-2.5">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Loans</span>
+                <div className="flex flex-col gap-2 w-full">
+                  {loans.map(l => {
+                    const total = parseFloat(l.total_amount) || 0;
+                    const paid = Math.max(0, total - (parseFloat(l.outstanding_amount) || 0));
+                    const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => navigate({ to: '/goals' })}
+                        className="relative w-full overflow-hidden rounded-xl border border-border/40 bg-muted/15 text-left min-h-[60px] cursor-pointer hover:border-primary/25 transition-colors"
+                      >
+                        {/* Soft sprayed fill — feathered edge, no hard line */}
+                        {pct > 0 && (
+                          <div
+                            className="absolute inset-y-0 left-0 pointer-events-none"
+                            style={{
+                              width: `${Math.min(100, pct + 18)}%`,
+                              background: `linear-gradient(90deg,
+                                hsl(var(--primary) / 0.28) 0%,
+                                hsl(var(--primary) / 0.2) ${Math.max(20, pct * 0.55)}%,
+                                hsl(var(--primary) / 0.1) ${Math.max(35, pct * 0.75)}%,
+                                hsl(var(--primary) / 0.04) ${Math.max(50, pct * 0.9)}%,
+                                transparent 100%)`,
+                            }}
+                            aria-hidden
+                          />
+                        )}
+
+                        <div className="relative z-10 flex items-center justify-between gap-3 px-3 py-2.5 w-full">
+                          <div className="flex flex-col min-w-0 flex-1 text-left">
+                            <span className="text-xs font-bold truncate text-foreground">{l.name}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {fmt(parseFloat(l.outstanding_amount) || 0, currencySymbol)} left
+                            </span>
+                          </div>
+                          <ProgressCircle value={pct} size={36} strokeWidth={3} className="text-primary shrink-0">
+                            <span className="text-[9px] font-bold text-foreground">{pct}%</span>
+                          </ProgressCircle>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </CardContent>
-              <div className="md:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-card to-transparent rounded-r-xl" />
             </Card>
           )}
         </div>
