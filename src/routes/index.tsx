@@ -707,9 +707,9 @@ export const Dashboard: React.FC = () => {
 
             {!isFetchingPrices && nwBreakdownOpen && (
               <div className="relative z-20 flex flex-wrap gap-1.5 pt-3 mt-1 border-t border-border/40">
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                {/* <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                   Cash {hideAmt(fmt(totalBalance, currencySymbol))}
-                </span>
+                </span> */}
                 {totalInvestments > 0 && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                     Invested {hideAmt(fmt(totalInvestments, currencySymbol))}

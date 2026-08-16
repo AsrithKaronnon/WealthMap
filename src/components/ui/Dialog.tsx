@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { haptic } from '../../lib/haptics';
 
 interface DialogProps {
   isOpen: boolean;
@@ -9,6 +10,18 @@ interface DialogProps {
   title?: React.ReactNode;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+function useIsPhoneSheet() {
+  const [isPhone, setIsPhone] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const apply = () => setIsPhone(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  return isPhone;
 }
 
 export const Dialog: React.FC<DialogProps> = ({
@@ -27,10 +40,22 @@ export const Dialog: React.FC<DialogProps> = ({
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [keyboardInset, setKeyboardInset] = React.useState(0);
   const [mounted, setMounted] = React.useState(false);
+  const isPhoneSheet = useIsPhoneSheet();
+  const wasOpen = React.useRef(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Soft haptics when a sheet opens / closes (all pickers use this Dialog)
+  React.useEffect(() => {
+    if (isOpen && !wasOpen.current) {
+      haptic('light');
+    } else if (!isOpen && wasOpen.current) {
+      haptic('selection');
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen]);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -83,31 +108,45 @@ export const Dialog: React.FC<DialogProps> = ({
     };
   }, [isOpen]);
 
+  const handleClose = React.useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   if (!mounted) return null;
+
+  const sheetMotion = isPhoneSheet
+    ? {
+        initial: { y: '100%' as const },
+        animate: { y: 0 },
+        exit: { y: '100%' as const },
+        transition: { type: 'spring' as const, stiffness: 420, damping: 38, mass: 0.85 },
+      }
+    : {
+        initial: { opacity: 0, scale: 0.96, y: 12 },
+        animate: { opacity: 1, scale: 1, y: 0 },
+        exit: { opacity: 0, scale: 0.96, y: 8 },
+        transition: { duration: 0.18, ease: [0.32, 0.72, 0, 1] as const },
+      };
 
   return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.4 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            transition={{ duration: 0.2 }}
+            onClick={handleClose}
             className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm cursor-pointer"
           />
 
-          {/* Dialog Container — viewport-fixed via portal (not trapped in sticky headers) */}
           <div
             className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none"
             style={{ paddingBottom: keyboardInset ? keyboardInset : undefined }}
           >
             <motion.div
-              initial={{ y: '100%', opacity: 1 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 1 }}
-              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+              {...sheetMotion}
               role="dialog"
               aria-modal="true"
               aria-labelledby={title ? 'dialog-title' : undefined}
@@ -119,11 +158,12 @@ export const Dialog: React.FC<DialogProps> = ({
                 pb-[env(safe-area-inset-bottom,12px)]
               `}
             >
-              <div className="sm:hidden flex justify-center pt-2 pb-0 shrink-0" aria-hidden>
+              {/* Drag affordance — phone sheets only */}
+              <div className="sm:hidden flex justify-center pt-2.5 pb-0.5 shrink-0" aria-hidden>
                 <span className="h-1 w-10 rounded-full bg-muted-foreground/25" />
               </div>
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0 gap-3">
+
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40 shrink-0 gap-3">
                 {title ? (
                   <h3 id="dialog-title" className="card-title min-w-0 truncate">
                     {title}
@@ -133,7 +173,7 @@ export const Dialog: React.FC<DialogProps> = ({
                 )}
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   aria-label="Close"
                   className="flex items-center justify-center min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 md:h-10 md:w-10 rounded-full text-muted-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
                 >

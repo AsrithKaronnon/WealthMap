@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog } from './Dialog';
 import { Button } from './Button';
 import { useConfirmStore } from '../../lib/useConfirmStore';
+import { haptic } from '../../lib/haptics';
 
 export const ConfirmDialog: React.FC = () => {
   const { isOpen, options, closeConfirm } = useConfirmStore();
@@ -9,6 +10,7 @@ export const ConfirmDialog: React.FC = () => {
   if (!options) return null;
 
   const handleConfirm = () => {
+    haptic(options.destructive ? 'warning' : 'medium');
     options.onConfirm();
     closeConfirm();
   };

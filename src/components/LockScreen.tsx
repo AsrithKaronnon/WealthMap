@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { verifyBiometrics } from '../lib/webauthn';
 import { Fingerprint, Lock, Delete } from 'lucide-react';
+import { haptic } from '../lib/haptics';
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -24,8 +25,10 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   useEffect(() => {
     if (pin.length === 4) {
       if (pin === savedPin) {
+        haptic('success');
         handleSuccess();
       } else {
+        haptic('warning');
         setError(true);
         setTimeout(() => {
           setPin('');
@@ -56,10 +59,12 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   };
 
   const handleDigit = (d: string) => {
+    haptic('selection');
     if (pin.length < 4) setPin(p => p + d);
   };
 
   const handleDelete = () => {
+    haptic('light');
     setPin(p => p.slice(0, -1));
   };
 
