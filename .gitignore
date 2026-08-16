@@ -34,3 +34,6 @@ dist-ssr
 
 # Visual Studio files
 .vs/
+
+# Supabase CLI local cache
+supabase/.temp/
