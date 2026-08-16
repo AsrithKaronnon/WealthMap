@@ -903,18 +903,13 @@ export const Transactions: React.FC = () => {
                           <div className="flex flex-col min-w-0 flex-1 pr-2">
                             <div className="flex items-center gap-2">
                               <span className="text-[14px] font-semibold text-foreground/95 leading-tight truncate">{displayMerchant}</span>
-                              {!isTransferTx && (
-                                <span className="text-[10px] text-muted-foreground/50 shrink-0 max-w-[80px] sm:max-w-[120px] truncate flex items-center gap-1.5">
-                                  <span className="text-[8px] opacity-40">•</span> {sourceAccName}
-                                </span>
-                              )}
                               {tx.receipt_url && (
                                 <div onClick={(e) => { e.stopPropagation(); setSelectedTxForReceipt(tx); }} className="bg-primary/20 p-1 rounded-full text-primary hover:bg-primary/30 transition-colors shrink-0" title="View Receipt">
                                   <FileText className="h-3 w-3" />
                                 </div>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none">
+                            <span className="text-xs text-muted-foreground/70 mt-0.5 leading-none truncate">
                               {activeTab === 'recurring'
                                 ? [
                                     tx.next_recurring_date
@@ -922,7 +917,10 @@ export const Transactions: React.FC = () => {
                                       : 'No next due',
                                     tx.recurrence_interval || 'monthly',
                                   ].join(' · ')
-                                : catName}
+                                : [
+                                    catName,
+                                    !isTransferTx ? sourceAccName : null,
+                                  ].filter(Boolean).join(' · ')}
                             </span>
                           </div>
                         </div>
