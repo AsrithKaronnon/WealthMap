@@ -27,6 +27,22 @@ async function fetchLivePrice(symbol: string): Promise<number> {
 
 serve(async (req) => {
   try {
+    // Supabase gateway needs a real JWT in Authorization (anon/service).
+    // App auth for cron is only via x-cron-secret.
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    if (!cronSecret) {
+      return new Response(JSON.stringify({ error: 'CRON_SECRET not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (req.headers.get('x-cron-secret') !== cronSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     

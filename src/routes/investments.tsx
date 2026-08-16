@@ -322,7 +322,8 @@ export const Investments: React.FC = () => {
           sip_amount: formData.is_sip ? formData.sip_amount : 0,
           sip_date: formData.is_sip ? formData.sip_date : null,
           sip_account_id: formData.is_sip ? (formData.sip_account_id || null) : null,
-          user_id: session.user.id
+          user_id: session.user.id,
+          created_by: session.user.id,
         }]);
         if (error) throw error;
       }
@@ -423,6 +424,9 @@ export const Investments: React.FC = () => {
             if (txErr) throw txErr;
           }
         }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        payload.created_by = user.id;
         const { error } = await supabase.from('assets').insert([payload]);
         if (error) throw error;
       }

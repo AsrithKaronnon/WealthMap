@@ -1,6 +1,10 @@
 import pg from 'pg';
 
-const connectionString = `postgresql://postgres.viefdnbijxsasfdjpusb:Zb1HvBIAj1b9XnXP@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres`;
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('Set DATABASE_URL in the environment (do not hardcode DB passwords in this file).');
+  process.exit(1);
+}
 
 async function main() {
   const client = new pg.Client({ connectionString });

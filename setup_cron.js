@@ -6,10 +6,19 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://viefdnbijxsasfdjpusb.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-if (!supabaseAnonKey) {
-  console.error("VITE_SUPABASE_ANON_KEY is not set");
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+const cronSecret = process.env.CRON_SECRET;
+if (!supabaseUrl) {
+  console.error("VITE_SUPABASE_URL (or SUPABASE_URL) is not set");
+  process.exit(1);
+}
+if (!anonKey) {
+  console.error("VITE_SUPABASE_ANON_KEY is not set (needed for Supabase gateway JWT check)");
+  process.exit(1);
+}
+if (!cronSecret) {
+  console.error("CRON_SECRET is not set — use the same value configured on the Edge Functions");
   process.exit(1);
 }
 
@@ -29,7 +38,12 @@ async function main() {
 
     console.log("Scheduling new jobs at 1 AM...");
 
-    const headers = `{"Content-Type": "application/json", "Authorization": "Bearer ${supabaseAnonKey}"}`;
+    // Authorization = anon JWT for Supabase gateway; x-cron-secret = app secret
+    const headers = JSON.stringify({
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${anonKey}`,
+      "x-cron-secret": cronSecret,
+    }).replace(/'/g, "''");
 
     const scheduleJob = async (jobName, functionName) => {
       const sql = `
@@ -55,13 +69,11 @@ async function main() {
 
     console.log("All cron jobs successfully configured!");
 
-    // Verify
     const jobs = await client.query("SELECT jobname, schedule, command FROM cron.job;");
     console.log("Current Cron Jobs:");
     for (const j of jobs.rows) {
       console.log(`- ${j.jobname} (${j.schedule})`);
     }
-
   } catch (err) {
     console.error("Error setting up cron jobs:", err);
   } finally {

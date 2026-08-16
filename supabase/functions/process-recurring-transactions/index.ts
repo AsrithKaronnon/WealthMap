@@ -10,6 +10,22 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 serve(async (req) => {
   try {
+    // Supabase gateway needs a real JWT in Authorization (anon/service).
+    // App auth for cron is only via x-cron-secret.
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret) {
+      return new Response(JSON.stringify({ error: "CRON_SECRET not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (req.headers.get("x-cron-secret") !== cronSecret) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
 
     let logId = null;
