@@ -52,6 +52,7 @@ export const Dashboard: React.FC = () => {
   const [movePrefill, setMovePrefill] = useState<MoveMoneyPrefill | undefined>();
   const [refreshKey, setRefreshKey] = useState(0);
   const [showReconcileNudge, setShowReconcileNudge] = useState(false);
+  const [activityVisible, setActivityVisible] = useState(5);
   const [nwBreakdownOpen, setNwBreakdownOpen] = useState(false);
   const [nwVisible, setNwVisible] = useState(() => {
     try {
@@ -449,15 +450,26 @@ export const Dashboard: React.FC = () => {
     return data;
   }, [transactions]);
 
-  // Activity feed (filtered)
+  // Activity feed (filtered, newest first)
   const activityFeed = useMemo(() => {
-    const items: any[] = [];
-    filteredTxs.slice(0, 15).forEach(t => items.push({
-      type: 'tx', id: `tx-${t.id}`, date: new Date(t.date), title: t.merchant || 'Transaction',
-      amount: parseFloat(t.amount) || 0, isIncome: t.transaction_type_id === SEED.transaction_types.income
-    }));
-    return items.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 15);
+    return filteredTxs
+      .map((t) => ({
+        type: 'tx' as const,
+        id: `tx-${t.id}`,
+        date: new Date(t.date),
+        title: t.merchant || 'Transaction',
+        amount: parseFloat(t.amount) || 0,
+        isIncome: t.transaction_type_id === SEED.transaction_types.income,
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [filteredTxs]);
+
+  const visibleActivity = activityFeed.slice(0, activityVisible);
+  const hasMoreActivity = activityVisible < activityFeed.length;
+
+  useEffect(() => {
+    setActivityVisible(5);
+  }, [timeFilter]);
 
   const relDate = (d: Date) => {
     const today = new Date(); today.setHours(0,0,0,0);
@@ -1023,7 +1035,7 @@ export const Dashboard: React.FC = () => {
               </div>
             ) : (
               <div className="flex flex-col">
-                {activityFeed.map(item => (
+                {visibleActivity.map(item => (
                   <div key={item.id} className="flex items-center justify-between px-2 py-2.5 min-h-[44px] hover:bg-muted/50 rounded-xl transition-colors">
                     <div className="flex items-center gap-2.5 flex-1 min-w-0 mr-2">
                       <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${item.isIncome ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-600 dark:text-rose-300'}`}>
@@ -1041,6 +1053,16 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                {hasMoreActivity && (
+                  <button
+                    type="button"
+                    onClick={() => setActivityVisible((n) => n + 10)}
+                    className="flex items-center justify-center gap-1.5 w-full min-h-[44px] mt-1 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    Show {Math.min(10, activityFeed.length - activityVisible)} more
+                  </button>
+                )}
               </div>
             )}
           </div>
