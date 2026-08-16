@@ -860,9 +860,21 @@ export const Transactions: React.FC = () => {
               });
             }
 
-            return entries.map(([dateLabel, txs]) => (
+            return entries.map(([dateLabel, txs]) => {
+              const daySpend = txs
+                .filter((t) => t.transaction_type_id === SEED.transaction_types.expense)
+                .reduce((s, t) => s + (Math.abs(parseFloat(t.amount) || 0)), 0);
+
+              return (
               <div key={dateLabel} className="flex flex-col gap-1.5">
-                <h3 className="text-[13px] font-medium text-muted-foreground opacity-90 px-1">{dateLabel}</h3>
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <h3 className="text-[13px] font-medium text-muted-foreground opacity-90">{dateLabel}</h3>
+                  {activeTab !== 'recurring' && daySpend > 0 && (
+                    <span className="text-[13px] font-semibold text-muted-foreground tabular-nums shrink-0">
+                      {currencySymbol}{daySpend.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                  )}
+                </div>
                 <div className="clay rounded-2xl overflow-hidden flex flex-col p-0">
                   {txs.map((tx: any) => {
                     const isIncome = tx.transaction_type_id === SEED.transaction_types.income;
@@ -930,7 +942,8 @@ export const Transactions: React.FC = () => {
                   })}
                 </div>
               </div>
-            ));
+              );
+            });
           })()
         )}
       </div>
