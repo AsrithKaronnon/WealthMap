@@ -1,5 +1,6 @@
 import React from 'react';
 import { MobileProfileButton } from './MobileProfileButton';
+import { HeaderWash } from './SprayFlow';
 
 interface MobilePageHeaderProps {
   title: string;
@@ -11,13 +12,20 @@ interface MobilePageHeaderProps {
 /** Sticky in-page header for mobile only. Uses a span so global h1 rules do not inflate it. */
 export const MobilePageHeader: React.FC<MobilePageHeaderProps> = ({ title, children, hideProfile = false }) => {
   return (
-    <div className="md:hidden sticky top-0 z-30 -mx-3 px-3 h-12 flex items-center gap-2 bg-background/90 backdrop-blur-md border-b border-border/40">
-      {!hideProfile && <MobileProfileButton className="!h-10 !w-10 text-[12px]" />}
-      <span className="min-w-0 flex-1 text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">
+    <div
+      className="md:hidden sticky top-0 z-30 -mx-3 px-3 flex items-center gap-2 relative"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        height: 'calc(3rem + env(safe-area-inset-top, 0px))',
+      }}
+    >
+      <HeaderWash />
+      {!hideProfile && <MobileProfileButton className="!h-10 !w-10 text-[12px] relative z-10" />}
+      <span className="relative z-10 min-w-0 flex-1 text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">
         {title}
       </span>
       {children ? (
-        <div className="flex items-center gap-1 shrink-0">{children}</div>
+        <div className="relative z-10 flex items-center gap-1 shrink-0">{children}</div>
       ) : null}
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import {
@@ -8,6 +8,7 @@ import {
 import { Card, CardContent } from '../components/ui/Card';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { TrendingUp, TrendingDown, Target, BarChart3 } from 'lucide-react';
+import { useAppRefresh } from '../lib/refresh';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
 
@@ -31,36 +32,39 @@ export const Insights: React.FC = () => {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [
-          { data: txData },
-          { data: budgetData },
-          { data: catData },
-          { data: settings }
-        ] = await Promise.all([
-          supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
-          supabase.from('budgets').select('*'),
-          supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
-          supabase.from('user_settings').select('currencies(symbol)').maybeSingle()
-        ]);
-        if (txData) setTransactions(txData);
-        if (budgetData) setBudgets(budgetData);
-        if (catData) setAllCats(catData);
-        if (settings?.currencies) {
-          const sym = Array.isArray(settings.currencies)
-            ? settings.currencies[0]?.symbol
-            : (settings.currencies as any)?.symbol;
-          if (sym) setCurrencySymbol(sym);
-        }
-      } finally {
-        setLoading(false);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [
+        { data: txData },
+        { data: budgetData },
+        { data: catData },
+        { data: settings }
+      ] = await Promise.all([
+        supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
+        supabase.from('budgets').select('*'),
+        supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
+        supabase.from('user_settings').select('currencies(symbol)').maybeSingle()
+      ]);
+      if (txData) setTransactions(txData);
+      if (budgetData) setBudgets(budgetData);
+      if (catData) setAllCats(catData);
+      if (settings?.currencies) {
+        const sym = Array.isArray(settings.currencies)
+          ? settings.currencies[0]?.symbol
+          : (settings.currencies as any)?.symbol;
+        if (sym) setCurrencySymbol(sym);
       }
-    };
-    load();
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useAppRefresh(() => load(true));
 
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);

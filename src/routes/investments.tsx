@@ -13,6 +13,7 @@ import { Dialog } from '../components/ui/Dialog';
 import { Tabs } from '../components/ui/Tabs';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
+import { useAppRefresh } from '../lib/refresh';
 import { computeNetWorth } from '../lib/netWorth';
 
 // ─── Asset Tab Definitions ────────────────────────────────────────────────────
@@ -97,8 +98,8 @@ export const Investments: React.FC = () => {
   const [invDebitCash, setInvDebitCash] = useState(false);
 
   // ─── Data Fetching ────────────────────────────────────────────────────────
-  const fetchInvestments = async () => {
-    setLoading(true);
+  const fetchInvestments = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [
         { data: invData },
@@ -201,6 +202,10 @@ export const Investments: React.FC = () => {
     fetchInvestments();
     fetchAssets();
   }, []);
+
+  useAppRefresh(async () => {
+    await Promise.all([fetchInvestments(true), fetchAssets()]);
+  });
 
   // Debounced search (existing — unchanged)
   useEffect(() => {

@@ -219,12 +219,56 @@ a, button, [role="button"] {
   background: hsl(var(--muted-foreground));
 }
 
-/* Custom animations and glow effects removed for minimalism */
-.glow-primary {
-  /* No glow */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
-.dark .glow-primary {
-  /* No glow */
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes spray-drift {
+  0% { transform: translate(-6%, -4%) rotate(0deg); }
+  50% { transform: translate(5%, 6%) rotate(8deg); }
+  100% { transform: translate(-6%, -4%) rotate(0deg); }
+}
+@keyframes spray-wave {
+  0% { transform: translate(4%, 5%) scale(1); opacity: 0.75; }
+  50% { transform: translate(-6%, -4%) scale(1.12); opacity: 1; }
+  100% { transform: translate(4%, 5%) scale(1); opacity: 0.75; }
+}
+.spray-flow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.spray-flow-wash {
+  position: absolute;
+  inset: -40%;
+  width: 180%;
+  height: 180%;
+  background: radial-gradient(
+    ellipse 80% 70% at 40% 50%,
+    hsl(var(--primary) / 0.22) 0%,
+    hsl(var(--primary) / 0.1) 40%,
+    hsl(var(--primary) / 0.04) 65%,
+    transparent 80%
+  );
+  animation: spray-drift 10s ease-in-out infinite;
+}
+.spray-flow-wave {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(ellipse 55% 50% at 70% 30%, hsl(var(--primary) / 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 25% 75%, hsl(var(--primary) / 0.14) 0%, transparent 50%);
+  animation: spray-wave 8s ease-in-out infinite;
 }
 
 /* Hide arrow keys on number inputs */

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { useAppRefresh } from '../lib/refresh';
 import { Dialog } from '../components/ui/Dialog';
 import { Skeleton } from '../components/ui/Skeleton';
 import { MobilePageHeader, mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
@@ -85,8 +86,8 @@ export const Goals: React.FC = () => {
   const [emiAmount, setEmiAmount] = useState<number>(0);
   const [emiAccountId, setEmiAccountId] = useState<string>('');
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       let [
         { data: goalsData },
@@ -136,6 +137,8 @@ export const Goals: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useAppRefresh(() => fetchData(true));
 
   // --- GOALS LOGIC ---
   const handleOpenGoalAdd = () => {

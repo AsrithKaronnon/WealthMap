@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
@@ -7,6 +8,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { Wallet, TrendingUp, Loader2, FileText, Filter, ArrowDownToLine, CreditCard, Check, Plus, BarChart3, ArrowLeftRight, ChevronDown, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { MobileProfileButton } from '../components/ui/MobileProfileButton';
+import { HeaderWash } from '../components/ui/SprayFlow';
 import { Card, CardContent } from '../components/ui/Card';
 import { ProgressCircle } from '../components/ui/ProgressCircle';
 import { Button } from '../components/ui/Button';
@@ -14,6 +16,8 @@ import { Dialog } from '../components/ui/Dialog';
 import { PinSetupPrompt } from '../components/PinSetupPrompt';
 import { MoveMoneySheet, type MoveMoneyPrefill } from '../components/MoveMoneySheet';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
+import { useAppRefresh } from '../lib/refresh';
+import { staggerContainer, staggerItem } from '../lib/motion';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
 
@@ -75,6 +79,7 @@ export const Dashboard: React.FC = () => {
   const hideAmt = (shown: string) => (nwVisible ? shown : '••••••');
 
   const navigate = useNavigate();
+  const loadDoneRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -84,9 +89,15 @@ export const Dashboard: React.FC = () => {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
+  useAppRefresh(useCallback(() => new Promise<void>((resolve) => {
+    loadDoneRef.current = resolve;
+    setRefreshKey((k) => k + 1);
+  }), []));
+
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
+      const silent = refreshKey > 0;
+      if (!silent) setLoading(true);
       try {
         const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: assetsData }, { data: nwHistoryData }] = await Promise.all([
           supabase.from('accounts').select('*').order('name', { ascending: true }),
@@ -131,6 +142,8 @@ export const Dashboard: React.FC = () => {
         }
       } finally {
         setLoading(false);
+        loadDoneRef.current?.();
+        loadDoneRef.current = null;
       }
     };
     load();
@@ -503,12 +516,15 @@ export const Dashboard: React.FC = () => {
   const hasData = transactions.length > 0;
 
   return (
-    <div className="flex flex-col gap-2 sm:gap-3">
+    <motion.div className="flex flex-col gap-2 sm:gap-3" variants={staggerContainer} initial="hidden" animate="show">
 
       {/* Mobile header: profile left, actions right */}
-      <div className="md:hidden sticky -top-3 z-30 -mx-3 px-3 pb-3 -mt-3 mb-2 flex items-center justify-between gap-2 bg-background/95 backdrop-blur-md border-b border-border/40" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
+      <div className="md:hidden sticky -top-3 z-30 -mx-3 px-3 pb-3 -mt-3 mb-2 flex items-center justify-between gap-2 relative" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
+        <HeaderWash />
+        <div className="relative z-10">
         <MobileProfileButton />
-        <div className="flex items-center gap-1 shrink-0">
+        </div>
+        <div className="relative z-10 flex items-center gap-1 shrink-0">
           <button
             type="button"
             onClick={() => setFilterSheetOpen(true)}
@@ -612,7 +628,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* ── 4 STAT CARDS ── */}
-      <div className="flex flex-col gap-2">
+      <motion.div className="flex flex-col gap-2" variants={staggerItem}>
         {/* Top: Net Worth */}
         <Card className="transition-all duration-200 relative overflow-hidden">
           <CardContent className="p-4 sm:p-6 min-h-[120px] sm:min-h-[140px] h-full flex flex-col relative">
@@ -765,7 +781,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Credit Card Usage */}
         {creditCardUsage > 0 && (
-          <Card className="relative overflow-hidden flex flex-row justify-between items-center px-4 py-3 sm:px-5">
+          <Card className="flex flex-row justify-between items-center px-4 py-3 sm:px-5">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard className="h-4 w-4 text-primary" />
@@ -847,10 +863,10 @@ export const Dashboard: React.FC = () => {
           </Card>
         )}
         </div>
-      </div>
+      </motion.div>
 
       {/* ── CHART ROW: Donut + Bar side by side on desktop, stacked on mobile ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
+      <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3" variants={staggerItem}>
 
           {/* Spending by Category Donut */}
           <Card>
@@ -920,11 +936,11 @@ export const Dashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
-      </div>
+      </motion.div>
 
       {/* ── GOALS & LOANS ── */}
       {(goals.length > 0 || loans.length > 0) && (
-        <div className="flex flex-col gap-3">
+        <motion.div className="flex flex-col gap-3" variants={staggerItem}>
           {goals.length > 0 && (
             <Card className="relative">
               <CardContent className="p-3 sm:p-4 flex flex-row items-center gap-3 overflow-x-auto">
@@ -998,11 +1014,11 @@ export const Dashboard: React.FC = () => {
               </CardContent>
             </Card>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* ── ACTIVITY FEED ── */}
-      <div className="md:hidden grid grid-cols-2 gap-2">
+      <motion.div className="md:hidden grid grid-cols-2 gap-2" variants={staggerItem}>
         <button
           type="button"
           onClick={() => navigate({ to: '/money', search: { tab: 'recurring' } })}
@@ -1017,8 +1033,9 @@ export const Dashboard: React.FC = () => {
         >
           <BarChart3 className="h-4 w-4" /> Insights
         </button>
-      </div>
+      </motion.div>
 
+      <motion.div variants={staggerItem}>
       <Card>
         <CardContent className="p-0">
           <div className="p-3 sm:p-4 border-b border-border flex justify-between items-center">
@@ -1068,6 +1085,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </motion.div>
       
       <PinSetupPrompt />
 
@@ -1102,6 +1120,6 @@ export const Dashboard: React.FC = () => {
           ))}
         </div>
       </Dialog>
-    </div>
+    </motion.div>
   );
 };

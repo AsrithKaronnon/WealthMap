@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { verifyBiometrics } from '../lib/webauthn';
 import { Fingerprint, Lock, Delete } from 'lucide-react';
 import { haptic } from '../lib/haptics';
+import { springSoft } from '../lib/motion';
 
 interface LockScreenProps {
   onUnlock: () => void;
@@ -69,13 +71,28 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
-      <div className="flex flex-col items-center max-w-sm w-full px-6">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+    <motion.div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background text-foreground pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
+    >
+      <motion.div
+        className="flex flex-col items-center max-w-sm w-full px-6"
+        initial={{ opacity: 0, y: 18, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={springSoft}
+      >
+        <motion.div
+          className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6"
+          initial={{ scale: 0.7, rotate: -12 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 18 }}
+        >
           <Lock className="h-8 w-8 text-primary" />
-        </div>
+        </motion.div>
         
-        <h2 className="text-xl font-bold mb-8">Enter PIN to Unlock</h2>
+        <h2 className="text-xl font-bold mb-8 text-foreground">Enter PIN to Unlock</h2>
         
         <div className="flex gap-4 mb-12">
           {[0, 1, 2, 3].map(i => (
@@ -127,7 +144,7 @@ export function LockScreen({ onUnlock }: LockScreenProps) {
             <Delete className="h-6 w-6" />
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

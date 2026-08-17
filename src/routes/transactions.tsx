@@ -14,7 +14,9 @@ import { Dialog } from '../components/ui/Dialog';
 import { Skeleton } from '../components/ui/Skeleton';
 import { mobileHeaderIconBtn } from '../components/ui/MobilePageHeader';
 import { MobileProfileButton } from '../components/ui/MobileProfileButton';
+import { HeaderWash } from '../components/ui/SprayFlow';
 import { MoveMoneySheet, type MoveMoneyPrefill } from '../components/MoveMoneySheet';
+import { useAppRefresh } from '../lib/refresh';
 
 export const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -110,9 +112,9 @@ export const Transactions: React.FC = () => {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       let [
         { data: txData },
         { data: accData },
@@ -168,6 +170,8 @@ export const Transactions: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useAppRefresh(() => fetchData(true));
 
   const handleQuickCameraUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -609,8 +613,12 @@ export const Transactions: React.FC = () => {
     <div className="flex flex-col gap-1.5">
       
       {/* Mobile sticky page header + quick add */}
-      <div className="md:hidden sticky top-0 z-30 -mx-3 bg-background/90 backdrop-blur-md border-b border-border/40">
-        <div className="px-3 h-12 flex items-center gap-2">
+      <div
+        className="md:hidden sticky top-0 z-30 -mx-3 relative"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        <HeaderWash />
+        <div className="relative z-10 px-3 h-12 flex items-center gap-2">
           <MobileProfileButton className="!h-10 !w-10 text-[12px]" />
           <span className="min-w-0 flex-1 text-[17px] font-semibold tracking-tight text-foreground truncate leading-none">Transactions</span>
           <div className="flex items-center gap-1 shrink-0">

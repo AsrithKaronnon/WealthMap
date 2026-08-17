@@ -7,6 +7,9 @@ import './index.css'
 
 import { useState, useEffect } from 'react'
 import { LockScreen } from './components/LockScreen'
+import { applyTheme, getSavedTheme } from './lib/theme'
+
+applyTheme(getSavedTheme());
 
 // Create TanStack Query client for data fetching queries
 const queryClient = new QueryClient();

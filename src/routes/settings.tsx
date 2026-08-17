@@ -12,10 +12,11 @@ import { Button } from '../components/ui/Button';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { SEED } from '../lib/supabaseMock';
 import { registerBiometrics } from '../lib/webauthn';
+import { applyTheme, getSavedTheme, type ThemePreference } from '../lib/theme';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const [theme, setTheme] = useState<ThemePreference>(() => getSavedTheme());
   const [currency, setCurrency] = useState('USD');
   const [currencies, setCurrencies] = useState<any[]>([]);
   // App Lock State
@@ -61,8 +62,8 @@ export const Settings: React.FC = () => {
     // AI NLP features disabled temporarily for security reasons (needs Edge Function)
     // Removed gemini API key load from localStorage
 
-    const savedTheme = window.localStorage.getItem('theme') || 'system';
-    setTheme(savedTheme as any);
+    const savedTheme = getSavedTheme();
+    setTheme(savedTheme);
 
     // Fetch master currencies
     supabase.from('currencies').select('*').order('code', { ascending: true }).then(({ data }) => {
@@ -185,18 +186,10 @@ export const Settings: React.FC = () => {
     }
   };
 
-  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+  const handleThemeChange = (newTheme: ThemePreference) => {
     setTheme(newTheme);
     window.localStorage.setItem('theme', newTheme);
-    
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    if (newTheme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(newTheme);
-    }
+    applyTheme(newTheme);
   };
 
   const handleSignOut = async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import { 
   Home, Wallet, Target, Settings, 
@@ -12,7 +12,12 @@ import { ToastContainer } from '../components/ui/Toast';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { toast } from '../lib/useToastStore';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { PullToRefresh } from '../components/ui/PullToRefresh';
+import { SprayFlow } from '../components/ui/SprayFlow';
+import { pageTransition, pageVariants } from '../lib/motion';
+import { haptic } from '../lib/haptics';
+import { applyTheme, getSavedTheme, type ThemePreference } from '../lib/theme';
 const logoImage = import.meta.env.BASE_URL + 'logo.png';
 
 import type { Session } from '@supabase/supabase-js';
@@ -29,9 +34,7 @@ export const RootLayout: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
-    return (window.localStorage.getItem('theme') as any) || 'system';
-  });
+  const [theme, setTheme] = useState<ThemePreference>(() => getSavedTheme());
 
   // Auth Form State
   const [isSignUp, setIsSignUp] = useState(false);
@@ -50,6 +53,7 @@ export const RootLayout: React.FC = () => {
 
   const routerState = useRouterState();
   const navigate = useNavigate();
+  const mainScrollRef = useRef<HTMLElement>(null);
 
   // Auth Sync
   useEffect(() => {
@@ -103,34 +107,12 @@ export const RootLayout: React.FC = () => {
 
   // Theme Sync
   useEffect(() => {
-    const root = window.document.documentElement;
-    const applyTheme = (t: 'light' | 'dark' | 'system') => {
-      root.classList.remove('light', 'dark');
-      if (t === 'system') {
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        root.classList.add(systemTheme);
-      } else {
-        root.classList.add(t);
-      }
-    };
-    const resolved = theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : theme;
-    const syncThemeColor = (mode: 'light' | 'dark') => {
-      document.querySelectorAll('meta[name="theme-color"]').forEach((el) => {
-        el.setAttribute('content', mode === 'dark' ? '#0d1117' : '#f5f7fa');
-      });
-    };
-    applyTheme(theme);
     window.localStorage.setItem('theme', theme);
-    syncThemeColor(resolved);
+    applyTheme(theme);
 
     if (theme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => {
-        applyTheme('system');
-        syncThemeColor(mediaQuery.matches ? 'dark' : 'light');
-      };
+      const handleChange = () => applyTheme('system');
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
@@ -398,7 +380,7 @@ export const RootLayout: React.FC = () => {
 
   // Logged-in App shell
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)] md:pt-0">
+    <div className="relative flex h-screen w-screen overflow-hidden bg-background">
       {connectionBannerEl}
       
       {/* DESKTOP SIDEBAR */}
@@ -497,6 +479,7 @@ export const RootLayout: React.FC = () => {
       </div>
 
       <nav className="md:hidden mobile-bottom-nav clay fixed bottom-0 left-0 right-0 flex items-stretch px-1 pt-1 pb-[max(6px,env(safe-area-inset-bottom,0px))] z-40 select-none">
+        <LayoutGroup>
         {navigationItems.filter((item) => item.path !== '/settings').map((item) => {
           const Icon = item.icon;
           const isActive = routerState.location.pathname === item.path;
@@ -505,28 +488,42 @@ export const RootLayout: React.FC = () => {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => { if (!isActive) haptic('selection'); }}
               className={`
-                relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 cursor-pointer active:scale-95 transition-transform
+                relative flex flex-col items-center justify-center gap-0.5 flex-1 h-12 cursor-pointer active:scale-95
                 ${isActive ? 'text-primary' : 'text-foreground/45'}
               `}
             >
-              <span className={`flex items-center justify-center h-7 w-7 rounded-full ${isActive ? 'clay-btn active !rounded-full bg-primary/10' : ''}`}>
-                <Icon className="h-[20px] w-[20px]" />
+              <span className="relative flex items-center justify-center h-7 w-7">
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    className="absolute inset-0 rounded-full bg-primary/12 clay-btn !rounded-full"
+                    transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+                  />
+                )}
+                <motion.span
+                  animate={{ scale: isActive ? 1.08 : 1 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+                  className="relative z-10 flex"
+                >
+                  <Icon className="h-[20px] w-[20px]" />
+                </motion.span>
               </span>
               <span className="text-[10px] font-semibold leading-none">{shortLabel}</span>
             </Link>
           );
         })}
+        </LayoutGroup>
       </nav>
 
       {/* MAIN CONTENT SECTION */}
       <div className="flex-1 flex flex-col h-full overflow-hidden pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
         
         {/* HEADER BAR */}
-        <header className="hidden md:flex bg-background px-4 sm:px-6 items-center justify-between shrink-0 z-10 select-none border-b border-border/40 h-[64px]">
-          
-          {/* Greeting message */}
-          <div className="flex flex-col justify-center">
+        <header className="hidden md:flex relative overflow-hidden bg-background px-4 sm:px-6 items-center justify-between shrink-0 z-10 select-none border-b border-border/40 h-[64px]">
+          <SprayFlow />
+          <div className="relative z-10 flex flex-col justify-center">
             <span className="text-[16px] font-semibold text-foreground whitespace-nowrap leading-tight">
               {getGreeting()}, {getUserDisplayName()}!
             </span>
@@ -534,33 +531,36 @@ export const RootLayout: React.FC = () => {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
           </div>
-
-          {/* Right Header items */}
-          <div className="flex items-center gap-3">
+          <div className="relative z-10 flex items-center gap-3">
             <NotificationsBell />
           </div>
         </header>
 
         {/* SCROLLABLE MAIN OUTLET */}
-        <main className={`flex-1 overflow-y-auto overscroll-contain bg-background px-3 md:px-6 ${
+        <main
+          ref={mainScrollRef}
+          className={`flex-1 overflow-y-auto overscroll-contain bg-background px-3 md:px-6 ${
           routerState.location.pathname === '/'
             ? 'pt-3 pb-4 md:py-6'
             : 'pt-0 pb-4 md:py-6'
         }`}>
+          <PullToRefresh scrollRef={mainScrollRef}>
           <ErrorBoundary>
             <AnimatePresence mode="wait">
               <motion.div
                 key={routerState.location.pathname}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
+                variants={pageVariants}
+                initial="initial"
+                animate="enter"
+                exit="exit"
+                transition={pageTransition}
                 className="h-full"
               >
                 <Outlet />
               </motion.div>
             </AnimatePresence>
           </ErrorBoundary>
+          </PullToRefresh>
         </main>
       </div>
 
