@@ -520,8 +520,8 @@ export const Dashboard: React.FC = () => {
           <NotificationsBell className="!h-9 !w-9" />
           <button
             type="button"
-            aria-label="Move money"
-            onClick={() => openMoveMoney()}
+            aria-label="Log transaction"
+            onClick={() => navigate({ to: '/money', search: { add: '1' } })}
             className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
           >
             <Plus className="h-4 w-4" />
@@ -534,9 +534,9 @@ export const Dashboard: React.FC = () => {
         <div className="flex justify-between items-center gap-3">
           <h1 className="page-title text-foreground m-0">Dashboard</h1>
           <div className="flex items-center gap-2 shrink-0">
-            <Button size="sm" variant="outline" onClick={() => openMoveMoney()} className="gap-1.5">
-              <ArrowLeftRight className="h-3.5 w-3.5" />
-              Move money
+            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money', search: { add: '1' } })} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              Log transaction
             </Button>
           {/* Time Filter - Right Side, Minimalist */}
           <div className="relative flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0 text-right">
