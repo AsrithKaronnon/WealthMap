@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { SEED } from '../lib/supabaseMock';
 import { computeAccountBalances, totalLiquidBalance } from '../lib/accountUtils';
 import { computeNetWorth } from '../lib/netWorth';
+import { fetchProjectsSafe, spentByProjectId, projectColor, untrackedProjectIdSet, isLedgerTransaction, projectIdSet } from '../lib/projects';
 import { useNavigate } from '@tanstack/react-router';
 import { Wallet, TrendingUp, Loader2, FileText, Filter, ArrowDownToLine, CreditCard, Check, Plus, BarChart3, ArrowLeftRight, ChevronDown, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
@@ -43,6 +44,7 @@ export const Dashboard: React.FC = () => {
   const [networthHistory, setNetworthHistory] = useState<any[]>([]);
   const [hiddenAccountIds, setHiddenAccountIds] = useState<string[]>([]);
   const [investments, setInvestments] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [allCats, setAllCats] = useState<any[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
@@ -140,6 +142,8 @@ export const Dashboard: React.FC = () => {
           setInvestments(invData);
           if (invData.length > 0) fetchLivePrices(invData).catch(console.error);
         }
+        const { projects: projRows } = await fetchProjectsSafe();
+        setProjects(projRows);
       } finally {
         setLoading(false);
         loadDoneRef.current?.();
@@ -217,6 +221,9 @@ export const Dashboard: React.FC = () => {
   const totalInvestments = investments.reduce((s, i) => s + (i.quantity * (livePrices[i.symbol] || 0)), 0);
   const totalAssets = assets.reduce((s, a) => s + parseFloat(a.current_value || 0), 0);
   const totalLoans = loans.reduce((s, l) => s + parseFloat(l.outstanding_amount || 0), 0);
+  const projectSpentMap = useMemo(() => spentByProjectId(transactions), [transactions]);
+  const taggedProjectIds = useMemo(() => projectIdSet(projects), [projects]);
+  const untrackedIds = useMemo(() => untrackedProjectIdSet(projects), [projects]);
   const totalNetWorth = computeNetWorth({
     liquidCash: totalBalance,
     investments: totalInvestments,
@@ -399,9 +406,9 @@ export const Dashboard: React.FC = () => {
     return d >= s && d <= e;
   };
 
-  const filteredTxs = transactions.filter(tx => inRange(tx.date, filterStartDate, filterEndDate));
+  const filteredTxs = transactions.filter(tx => inRange(tx.date, filterStartDate, filterEndDate) && isLedgerTransaction(tx, untrackedIds));
 
-  const sumExp = (txs: any[]) => txs.filter(t => t.transaction_type_id === SEED.transaction_types.expense).reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+  const sumExp = (txs: any[]) => txs.filter(t => t.transaction_type_id === SEED.transaction_types.expense && isLedgerTransaction(t, untrackedIds)).reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
   const sumInc = (txs: any[]) => txs.filter(t => t.transaction_type_id === SEED.transaction_types.income).reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
 
   const curIncome  = sumInc(filteredTxs);
@@ -413,10 +420,11 @@ export const Dashboard: React.FC = () => {
   const spendByCategory = useMemo(() => {
     const map = new Map<string, number>();
     filteredTxs
-      .filter((t) => t.transaction_type_id === SEED.transaction_types.expense)
+      .filter((t) => t.transaction_type_id === SEED.transaction_types.expense && isLedgerTransaction(t, untrackedIds))
       .forEach((t) => {
-        const cat = allCats.find((c) => c.id === t.category_id);
-        const name = cat?.name || 'Other';
+        const name = taggedProjectIds.has(t.project_id)
+          ? 'Projects'
+          : (allCats.find((c) => c.id === t.category_id)?.name || 'Other');
         map.set(name, (map.get(name) || 0) + (parseFloat(t.amount) || 0));
       });
 
@@ -435,7 +443,7 @@ export const Dashboard: React.FC = () => {
     const otherValue = Math.max(0, Math.round(fullTotal) - topSum);
     if (otherValue > 0) top.push({ name: 'Other', value: otherValue });
     return top;
-  }, [filteredTxs, allCats]);
+  }, [filteredTxs, allCats, taggedProjectIds, untrackedIds]);
   const totalSpend = spendByCategory.reduce((s, c) => s + c.value, 0);
 
   // 6-Month Income vs Expenses Line Chart Data (independent of filter)
@@ -461,7 +469,7 @@ export const Dashboard: React.FC = () => {
       });
     }
     return data;
-  }, [transactions]);
+  }, [transactions, untrackedIds]);
 
   // Activity feed (filtered, newest first)
   const activityFeed = useMemo(() => {
@@ -864,6 +872,36 @@ export const Dashboard: React.FC = () => {
         )}
         </div>
       </motion.div>
+
+      {projects.filter((p) => p.status !== 'completed' && !untrackedIds.has(p.id)).length > 0 && (
+        <motion.div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1" variants={staggerItem}>
+          {projects.filter((p) => p.status !== 'completed' && !untrackedIds.has(p.id)).map((p) => {
+            const spent = projectSpentMap[p.id] || 0;
+            const budget = parseFloat(p.budget) || 0;
+            const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+            const tone = projectColor(p.color);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate({ to: '/projects/$projectId', params: { projectId: p.id } })}
+                className="shrink-0 w-[168px] clay rounded-2xl p-3 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-base leading-none">{p.emoji || '📁'}</span>
+                  <span className="text-[13px] font-semibold truncate">{p.name}</span>
+                </div>
+                <div className="text-[12px] font-bold">{fmt(spent, currencySymbol)}</div>
+                {budget > 0 && (
+                  <div className="h-1 rounded-full bg-muted mt-1.5 overflow-hidden">
+                    <div className={`h-full ${tone.bar}`} style={{ width: `${pct}%` }} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </motion.div>
+      )}
 
       {/* ── CHART ROW: Donut + Bar side by side on desktop, stacked on mobile ── */}
       <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3" variants={staggerItem}>

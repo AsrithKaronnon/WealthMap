@@ -9,6 +9,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { MobilePageHeader } from '../components/ui/MobilePageHeader';
 import { TrendingUp, TrendingDown, Target, BarChart3 } from 'lucide-react';
 import { useAppRefresh } from '../lib/refresh';
+import { fetchProjectsSafe, untrackedProjectIdSet, isLedgerTransaction } from '../lib/projects';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
 
@@ -20,6 +21,7 @@ export const Insights: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [allCats, setAllCats] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [currencySymbol, setCurrencySymbol] = useState('RS');
   const [selectedMonth, setSelectedMonth] = useState<'current' | 'last'>('current');
   const [isMobile, setIsMobile] = useState(false);
@@ -39,16 +41,19 @@ export const Insights: React.FC = () => {
         { data: txData },
         { data: budgetData },
         { data: catData },
-        { data: settings }
+        { data: settings },
+        { projects: projRows }
       ] = await Promise.all([
         supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
         supabase.from('budgets').select('*'),
         supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
-        supabase.from('user_settings').select('currencies(symbol)').maybeSingle()
+        supabase.from('user_settings').select('currencies(symbol)').maybeSingle(),
+        fetchProjectsSafe()
       ]);
       if (txData) setTransactions(txData);
       if (budgetData) setBudgets(budgetData);
       if (catData) setAllCats(catData);
+      setProjects(projRows || []);
       if (settings?.currencies) {
         const sym = Array.isArray(settings.currencies)
           ? settings.currencies[0]?.symbol
@@ -77,8 +82,14 @@ export const Insights: React.FC = () => {
     return d >= start && d <= end;
   };
 
-  const currentMonthTxs = transactions.filter(tx => inRange(tx.date, currentMonthStart, currentMonthEnd));
-  const lastMonthTxs    = transactions.filter(tx => inRange(tx.date, lastMonthStart, lastMonthEnd));
+  const untrackedIds = useMemo(() => untrackedProjectIdSet(projects), [projects]);
+  const ledgerTxs = useMemo(
+    () => transactions.filter((tx) => isLedgerTransaction(tx, untrackedIds)),
+    [transactions, untrackedIds]
+  );
+
+  const currentMonthTxs = ledgerTxs.filter(tx => inRange(tx.date, currentMonthStart, currentMonthEnd));
+  const lastMonthTxs    = ledgerTxs.filter(tx => inRange(tx.date, lastMonthStart, lastMonthEnd));
   const displayTxs      = selectedMonth === 'current' ? currentMonthTxs : lastMonthTxs;
 
   const sumIncome  = (txs: any[]) => txs.filter(t => t.transaction_type_id === SEED.transaction_types.income).reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
@@ -114,13 +125,13 @@ export const Insights: React.FC = () => {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-      const txs = transactions.filter(t => inRange(t.date, start, end));
+      const txs = ledgerTxs.filter(t => inRange(t.date, start, end));
       const inc = sumIncome(txs);
       const exp = sumExpense(txs);
       data.push({ name: d.toLocaleString('default', { month: 'short' }), Income: Math.round(inc), Expenses: Math.round(exp), Net: Math.round(inc - exp) });
     }
     return data;
-  }, [transactions]);
+  }, [ledgerTxs]);
 
   const monthCompareData = useMemo(() => {
     const data = [];
@@ -129,11 +140,11 @@ export const Insights: React.FC = () => {
       const label = i === 0 ? 'This Month' : i === 1 ? 'Last Month' : d.toLocaleString('default', { month: 'short' });
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-      const txs = transactions.filter(t => inRange(t.date, start, end));
+      const txs = ledgerTxs.filter(t => inRange(t.date, start, end));
       data.push({ name: label, Income: Math.round(sumIncome(txs)), Expenses: Math.round(sumExpense(txs)) });
     }
     return data;
-  }, [transactions]);
+  }, [ledgerTxs]);
 
   const budgetPerf = useMemo(() => budgets.map(b => {
     const cat   = allCats.find(c => c.id === b.category_id);

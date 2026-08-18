@@ -104,7 +104,10 @@ export const SEED = {
     savings: 'ac000000-0000-0000-0000-000000000002',
     sapphire: 'ac000000-0000-0000-0000-000000000003',
     robinhood: 'ac000000-0000-0000-0000-000000000004',
-  }
+  },
+  projects: {
+    house: 'proj0000-0000-0000-0000-000000000001',
+  },
 };
 
 // Seeding implementation
@@ -516,6 +519,22 @@ export function initializeMockDatabase() {
         { id: 'net-worth-trend', w: 'large', pinned: true }
       ]
     }
+  ]);
+
+  seedTable('projects', [
+    {
+      id: SEED.projects.house,
+      name: 'Home Renovation',
+      emoji: '🏠',
+      color: 'amber',
+      project_type: 'general',
+      budget: 500000,
+      status: 'active',
+      start_date: '2026-01-01',
+      description: 'Full interior renovation of new flat',
+      exclude_from_charts: true,
+      track_expenses: true,
+    },
   ]);
 }
 

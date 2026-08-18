@@ -36,7 +36,6 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 export const Investments: React.FC = () => {
-
   // ── Existing Investments (Stocks & MF) state ──────────────────────────────
   const [loading, setLoading] = useState(true);
   const [investments, setInvestments] = useState<any[]>([]);

@@ -4,6 +4,7 @@
  *   NW = liquid cash
  *      + market investments
  *      + other assets
+ *      + capital projects in progress (optional)
  *      − credit card usage
  *      − loan outstanding
  *
@@ -13,6 +14,7 @@ export function computeNetWorth(parts: {
   liquidCash: number;
   investments: number;
   otherAssets: number;
+  capitalProjects?: number;
   creditCardUsage?: number;
   loansOutstanding?: number;
 }): number {
@@ -21,7 +23,8 @@ export function computeNetWorth(parts: {
   return (
     (parts.liquidCash || 0) +
     (parts.investments || 0) +
-    (parts.otherAssets || 0) -
+    (parts.otherAssets || 0) +
+    (parts.capitalProjects || 0) -
     cc -
     loans
   );

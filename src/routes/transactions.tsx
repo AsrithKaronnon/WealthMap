@@ -17,6 +17,9 @@ import { MobileProfileButton } from '../components/ui/MobileProfileButton';
 import { HeaderWash } from '../components/ui/SprayFlow';
 import { MoveMoneySheet, type MoveMoneyPrefill } from '../components/MoveMoneySheet';
 import { useAppRefresh } from '../lib/refresh';
+import { ProjectBadge } from '../components/ui/ProjectBadge';
+import { ProjectSelector } from '../components/ui/ProjectSelector';
+import { fetchProjectsSafe, tracksExpenses, untrackedProjectIdSet, isLedgerTransaction } from '../lib/projects';
 
 export const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,8 @@ export const Transactions: React.FC = () => {
   const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
   const [incomeCategories, setIncomeCategories] = useState<any[]>([]);
   const [currencySymbol, setCurrencySymbol] = useState('$');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectsAvailable, setProjectsAvailable] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'spends' | 'income' | 'recurring'>('all');
@@ -60,7 +65,8 @@ export const Transactions: React.FC = () => {
     notes: '',
     tags: ['Essential'],
     is_recurring: false,
-    recurrence_interval: 'monthly'
+    recurrence_interval: 'monthly',
+    project_id: ''
   });
 
   // Receipt Modal State
@@ -70,6 +76,8 @@ export const Transactions: React.FC = () => {
   const [editingTxId, setEditingTxId] = useState<string | null>(null);
 
   const LAST_ACCOUNT_KEY = 'wealthmap_last_account_id';
+  const navigate = useNavigate();
+  const search = useSearch({ from: '/money' });
   const rememberAccount = (id: string) => {
     try {
       if (id) localStorage.setItem(LAST_ACCOUNT_KEY, id);
@@ -120,13 +128,15 @@ export const Transactions: React.FC = () => {
         { data: accData },
         { data: expCatData },
         { data: incCatData },
-        { data: settingsData }
+        { data: settingsData },
+        projectsRes,
       ] = await Promise.all([
         supabase.from('transactions').select('*').eq('is_deleted', false),
         supabase.from('accounts').select('*').order('name', { ascending: true }),
         supabase.from('expense_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
         supabase.from('income_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
-        supabase.from('user_settings').select('base_currency_id, currencies(symbol)').maybeSingle()
+        supabase.from('user_settings').select('base_currency_id, currencies(symbol)').maybeSingle(),
+        fetchProjectsSafe(),
       ]);
 
       // If new user has no accounts, auto-create defaults
@@ -160,6 +170,8 @@ export const Transactions: React.FC = () => {
       if (accData) setAccounts(accData);
       if (expCatData) setExpenseCategories(expCatData);
       if (incCatData) setIncomeCategories(incCatData);
+      setProjects(projectsRes.projects);
+      setProjectsAvailable(projectsRes.available);
     } catch (err) {
       console.error('Error fetching transactions ledger:', err);
     } finally {
@@ -338,13 +350,24 @@ export const Transactions: React.FC = () => {
         }
       } else {
         payload.transfer_to_account_id = null as any;
-        if (!payload.account_id) throw new Error('Select an account');
+        const assignedProject = projects.find((p) => p.id === payload.project_id);
+        const skipLedger = projectsAvailable && !!payload.project_id && !tracksExpenses(assignedProject);
+        if (skipLedger) {
+          payload.account_id = null as any;
+        } else if (!payload.account_id) {
+          throw new Error('Select an account');
+        }
       }
 
       // Sanitize empty strings to null for UUIDs
       if (payload.account_id === '') payload.account_id = null as any;
       if (payload.transfer_to_account_id === '') payload.transfer_to_account_id = null as any;
       if (payload.category_id === '') payload.category_id = null as any;
+      if (!projectsAvailable) {
+        delete payload.project_id;
+      } else if (!payload.project_id) {
+        payload.project_id = null;
+      }
       
       if (payload.is_recurring) {
         const nextDate = new Date(payload.date);
@@ -451,7 +474,7 @@ export const Transactions: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = (prefillProjectId?: string) => {
     setEditingTxId(null);
     setFormData({
       date: new Date().toISOString().split('T')[0],
@@ -464,22 +487,27 @@ export const Transactions: React.FC = () => {
       notes: '',
       tags: ['Essential'],
       is_recurring: false,
-      recurrence_interval: 'monthly'
+      recurrence_interval: 'monthly',
+      project_id: prefillProjectId && prefillProjectId !== 'regular' ? prefillProjectId : '',
     });
     setModalActiveTab('manual');
     setIsModalOpen(true);
   };
 
-  const navigate = useNavigate();
-  const search = useSearch({ from: '/money' });
+  const keepMoneySearch = () => {
+    const next: { tab?: 'recurring'; project?: string } = {};
+    if (search.tab === 'recurring') next.tab = 'recurring';
+    if (search.project) next.project = search.project;
+    return next;
+  };
 
   useEffect(() => {
     if (search.tab === 'recurring') {
       setActiveTab('recurring');
     }
     if (search.add === '1') {
-      handleOpenAdd();
-      navigate({ to: '/money', search: search.tab === 'recurring' ? { tab: 'recurring' } : {}, replace: true });
+      handleOpenAdd(search.project);
+      navigate({ to: '/money', search: keepMoneySearch(), replace: true });
     }
     if (search.move) {
       setMovePrefill({
@@ -489,10 +517,10 @@ export const Transactions: React.FC = () => {
         creditCardId: search.ccId,
       });
       setMoveMoneyOpen(true);
-      navigate({ to: '/money', search: search.tab === 'recurring' ? { tab: 'recurring' } : {}, replace: true });
+      navigate({ to: '/money', search: keepMoneySearch(), replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when query flags are present
-  }, [search.add, search.move, search.recurringId, search.loanId, search.ccId, search.tab]);
+  }, [search.add, search.move, search.recurringId, search.loanId, search.ccId, search.tab, search.project]);
 
   const handleOpenEdit = (tx: any) => {
     setEditingTxId(tx.id);
@@ -507,7 +535,8 @@ export const Transactions: React.FC = () => {
       notes: tx.notes || '',
       tags: Array.isArray(tx.tags) ? tx.tags : ['Essential'],
       is_recurring: !!tx.is_recurring,
-      recurrence_interval: tx.recurrence_interval || 'monthly'
+      recurrence_interval: tx.recurrence_interval || 'monthly',
+      project_id: tx.project_id || '',
     });
     setModalActiveTab('manual');
     setIsModalOpen(true);
@@ -536,9 +565,11 @@ export const Transactions: React.FC = () => {
     });
   };
 
+  const untrackedIds = untrackedProjectIdSet(projects);
+
   const handleExportCSV = () => {
     const headers = 'Date,Description,Amount,Type,Account\n';
-    const rows = transactions.map(tx => {
+    const rows = transactions.filter((tx) => isLedgerTransaction(tx, untrackedIds)).map(tx => {
       const type =
         tx.transaction_type_id === SEED.transaction_types.income ? 'Income'
         : tx.transaction_type_id === SEED.transaction_types.transfer ? 'Transfer'
@@ -561,6 +592,7 @@ export const Transactions: React.FC = () => {
 
   // Filter evaluation
   const filteredTransactions = transactions.filter(tx => {
+    if (!isLedgerTransaction(tx, untrackedIds)) return false;
     const merchant = (tx.merchant || '').toLowerCase();
     const matchesSearch = merchant.includes(searchQuery.toLowerCase());
 
@@ -600,7 +632,12 @@ export const Transactions: React.FC = () => {
       }
     }
 
-    return matchesSearch && matchesTab && matchesCategory && matchesDate;
+    const projectFilter = search.project;
+    const matchesProject =
+      !projectFilter ||
+      (projectFilter === 'regular' ? !tx.project_id : tx.project_id === projectFilter);
+
+    return matchesSearch && matchesTab && matchesCategory && matchesDate && matchesProject;
   });
 
   const activeCategories = formData.transaction_type_id === SEED.transaction_types.income
@@ -608,6 +645,8 @@ export const Transactions: React.FC = () => {
     : expenseCategories;
 
   const isTransfer = formData.transaction_type_id === SEED.transaction_types.transfer;
+  const assignedProject = projects.find((p) => p.id === formData.project_id);
+  const skipLedger = !isTransfer && !!formData.project_id && !tracksExpenses(assignedProject);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -637,7 +676,7 @@ export const Transactions: React.FC = () => {
               <ArrowLeftRight className="h-4 w-4" />
             </button>
             <button
-              onClick={handleOpenAdd}
+              onClick={() => handleOpenAdd()}
               aria-label="Add transaction"
               className="flex items-center justify-center h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
             >
@@ -695,7 +734,7 @@ export const Transactions: React.FC = () => {
             <ArrowLeftRight className="h-4 w-4" />
           </button>
           <button 
-            onClick={handleOpenAdd} 
+            onClick={() => handleOpenAdd()} 
             className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white hover:opacity-90 transition-opacity cursor-pointer clay-btn"
           >
             <Plus className="h-5 w-5" />
@@ -721,7 +760,7 @@ export const Transactions: React.FC = () => {
               onClick={() => {
                 setActiveTab(id);
                 if (search.tab === 'recurring' && id !== 'recurring') {
-                  navigate({ to: '/money', search: {}, replace: true });
+                  navigate({ to: '/money', search: search.project ? { project: search.project } : {}, replace: true });
                 }
               }}
               className={`flex-1 basis-0 min-w-0 text-[11px] sm:text-[13px] font-medium rounded-full py-2 px-1 transition-all duration-300 truncate ${
@@ -791,6 +830,25 @@ export const Transactions: React.FC = () => {
         </div>
       )}
 
+      {projectsAvailable && projects.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Project</span>
+          <ProjectSelector
+            projects={projects}
+            value={search.project || ''}
+            includeAll
+            trackedOnly
+            noneLabel="Regular only"
+            onChange={(val) => {
+              const next: { tab?: 'recurring'; project?: string } = {};
+              if (search.tab === 'recurring') next.tab = 'recurring';
+              if (val) next.project = val;
+              navigate({ to: '/money', search: next, replace: true });
+            }}
+          />
+        </div>
+      )}
+
       
       {/* TRANSACTION FEED LISTINGS */}
       <div className="flex flex-col gap-2 pb-6">
@@ -811,11 +869,11 @@ export const Transactions: React.FC = () => {
                   : 'Nothing matches these filters.'}
             </p>
             {activeTab === 'recurring' ? (
-              <Button size="sm" onClick={handleOpenAdd}>Add transaction</Button>
+              <Button size="sm" onClick={() => handleOpenAdd()}>Add transaction</Button>
             ) : transactions.length === 0 ? (
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setMoveMoneyOpen(true)}>Move money</Button>
-                <Button size="sm" onClick={handleOpenAdd}>Log transaction</Button>
+                <Button size="sm" onClick={() => handleOpenAdd()}>Log transaction</Button>
               </div>
             ) : (
               <Button size="sm" variant="outline" onClick={() => { setDateFilter('all'); setActiveTab('all'); setSearchQuery(''); }}>
@@ -930,6 +988,7 @@ export const Transactions: React.FC = () => {
                                     !isTransferTx ? sourceAccName : null,
                                   ].filter(Boolean).join(' · ')}
                             </span>
+                            <ProjectBadge project={projects.find((p) => p.id === tx.project_id)} />
                           </div>
                         </div>
                         
@@ -1083,6 +1142,7 @@ export const Transactions: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!skipLedger && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-muted-foreground">{isTransfer ? 'Source Account' : 'Account'}</label>
@@ -1122,6 +1182,7 @@ export const Transactions: React.FC = () => {
                 </select>
               )}
             </div>
+            )}
 
             {isTransfer && (
               <div className="flex flex-col gap-1">
@@ -1204,6 +1265,20 @@ export const Transactions: React.FC = () => {
               placeholder="Record details..."
             />
           </div>
+
+          {projectsAvailable && projects.length > 0 && formData.transaction_type_id !== SEED.transaction_types.transfer && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-bold text-muted-foreground">Assign to Project</label>
+              <ProjectSelector
+                projects={projects}
+                value={formData.project_id}
+                activeOnly
+                trackedOnly
+                noneLabel="None (regular expense)"
+                onChange={(val) => setFormData({ ...formData, project_id: val })}
+              />
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4 select-none">
             {editingTxId && (

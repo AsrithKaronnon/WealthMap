@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import { 
-  Home, Wallet, Target, Settings, 
+  Home, Wallet, Target, Settings, FolderKanban, 
   ChevronLeft, ChevronRight, LogOut, Sun, Moon, 
   Monitor, AlertCircle, TrendingUp, WifiOff, Wifi, X, Eye, EyeOff
 } from 'lucide-react';
@@ -27,6 +27,7 @@ const navigationItems = [
   { label: 'My Money', path: '/money', icon: Wallet, keywords: 'spent income checking cash stars coffee' },
   { label: 'Goals & Loans', path: '/goals', icon: Target, keywords: 'save bike bridal laptop target travel loan emi debt liability' },
   { label: 'Assets', path: '/investments', icon: TrendingUp, keywords: 'stocks market mutual funds gold fd property vehicle assets' },
+  { label: 'Projects', path: '/projects', icon: FolderKanban, keywords: 'house wedding trip farm event build renovation project' },
   { label: 'Settings', path: '/settings', icon: Settings, keywords: 'theme currencies reset local storage' },
 ];
 
@@ -405,7 +406,10 @@ export const RootLayout: React.FC = () => {
         <nav className="flex-1 px-2 py-6 space-y-1 overflow-y-auto">
           {navigationItems.map((item) => {
             const Icon = item.icon;
-            const isActive = routerState.location.pathname === item.path;
+            const isActive =
+              item.path === '/projects'
+                ? routerState.location.pathname === '/projects' || routerState.location.pathname.startsWith('/projects/')
+                : routerState.location.pathname === item.path;
             return (
               <Link
                 key={item.path}
@@ -482,7 +486,10 @@ export const RootLayout: React.FC = () => {
         <LayoutGroup>
         {navigationItems.filter((item) => item.path !== '/settings').map((item) => {
           const Icon = item.icon;
-          const isActive = routerState.location.pathname === item.path;
+          const isActive =
+            item.path === '/projects'
+              ? routerState.location.pathname === '/projects' || routerState.location.pathname.startsWith('/projects/')
+              : routerState.location.pathname === item.path;
           const shortLabel = item.path === '/money' ? 'Money' : item.path === '/goals' ? 'Goals' : item.label;
           return (
             <Link
