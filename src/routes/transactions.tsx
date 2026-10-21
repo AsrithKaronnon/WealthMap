@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { supabase } from '../lib/supabaseClient';
 import { toast } from '../lib/useToastStore';
 import { confirm } from '../lib/useConfirmStore';
 import { SEED } from '../lib/supabaseMock';
 import { parseTextTransaction, parseReceiptImage, isGeminiConfigured } from '../lib/gemini';
-import { 
-  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, Camera, Filter, Check, ArrowLeftRight
+import {
+  Plus, Search, Trash2, Sparkles, FileText, Pencil, Download, Camera, Filter, Check, ArrowLeftRight, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -43,12 +43,12 @@ export const Transactions: React.FC = () => {
   // Quick Add State
   const [quickAddVal, setQuickAddVal] = useState('');
   const [quickAddLoading, setQuickAddLoading] = useState(false);
-  
+
   // Receipt Upload State
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [isReceiptScannerLoading, setIsReceiptScannerLoading] = useState(false);
-  
+
   // Main Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [moveMoneyOpen, setMoveMoneyOpen] = useState(false);
@@ -68,6 +68,12 @@ export const Transactions: React.FC = () => {
     recurrence_interval: 'monthly',
     project_id: ''
   });
+
+  // More Options State
+  const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
+
+  // Ref for amount input auto-focus
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   // Receipt Modal State
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<any | null>(null);
@@ -91,33 +97,6 @@ export const Transactions: React.FC = () => {
     const funding = accounts.filter((a) => a.account_type !== 'Credit Card');
     if (funding.length === 1) return funding[0].id;
     return '';
-  };
-
-  // New Account Inline State
-  const [isAddingAccount, setIsAddingAccount] = useState(false);
-  const [newAccountName, setNewAccountName] = useState('');
-
-  const submitNewAccount = async () => {
-    if (!newAccountName.trim()) { setIsAddingAccount(false); return; }
-    try {
-      const { data, error } = await supabase.from('accounts').insert([{
-        name: newAccountName.trim(),
-        balance: 0,
-        account_type: 'Checking',
-        currency_id: SEED.currencies.usd
-      }]).select();
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setAccounts([...accounts, data[0]]);
-        setFormData({ ...formData, account_id: data[0].id });
-        toast.success(`Account '${newAccountName.trim()}' added!`);
-      }
-    } catch (err: any) {
-      toast.error('Failed to add account: ' + err.message);
-    } finally {
-      setIsAddingAccount(false);
-      setNewAccountName('');
-    }
   };
 
   const fetchData = async (silent = false) => {
@@ -182,6 +161,15 @@ export const Transactions: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Auto-focus amount input when modal opens
+  useEffect(() => {
+    if (isModalOpen && modalActiveTab === 'manual' && !editingTxId) {
+      setTimeout(() => {
+        amountInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isModalOpen, modalActiveTab, editingTxId]);
 
   useAppRefresh(() => fetchData(true));
 
@@ -481,7 +469,7 @@ export const Transactions: React.FC = () => {
       amount: 0,
       transaction_type_id: SEED.transaction_types.expense,
       category_id: expenseCategories[0]?.id || SEED.expense_categories.food,
-      account_id: '',
+      account_id: resolveQuickAccountId(),
       transfer_to_account_id: '',
       merchant: '',
       notes: '',
@@ -643,6 +631,25 @@ export const Transactions: React.FC = () => {
   const activeCategories = formData.transaction_type_id === SEED.transaction_types.income
     ? incomeCategories
     : expenseCategories;
+
+  // Calculate frequently used categories for quick-access
+  const frequentlyUsedCategories = useMemo(() => {
+    const categoryUsage = new Map<string, number>();
+    transactions
+      .filter(t => t.transaction_type_id === formData.transaction_type_id && !t.is_deleted)
+      .forEach(t => {
+        if (t.category_id) {
+          categoryUsage.set(t.category_id, (categoryUsage.get(t.category_id) || 0) + 1);
+        }
+      });
+
+    const sorted = activeCategories
+      .map(cat => ({ ...cat, usage: categoryUsage.get(cat.id) || 0 }))
+      .sort((a, b) => b.usage - a.usage);
+
+    // Return all categories sorted by usage
+    return sorted;
+  }, [transactions, activeCategories, formData.transaction_type_id]);
 
   const isTransfer = formData.transaction_type_id === SEED.transaction_types.transfer;
   const assignedProject = projects.find((p) => p.id === formData.project_id);
@@ -1067,234 +1074,280 @@ export const Transactions: React.FC = () => {
              )}
           </label>
         ) : (
-          <div className="flex flex-col gap-4">
+          <form onSubmit={handleSave} className="flex flex-col gap-4">
+            {/* Tip banner */}
             <div className="bg-amber-500/10 text-amber-500 text-xs p-3 rounded-lg flex items-start gap-2">
               <Sparkles className="h-4 w-4 shrink-0 mt-0.5" />
               <p><strong>Tip:</strong> If you are paying a recurring item, use Move money → Pay recurring so the next due date advances correctly.</p>
             </div>
-            <form onSubmit={handleSave} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1 order-1">
-              <label className="text-xs font-bold text-muted-foreground">Type</label>
-              <select
-                value={formData.transaction_type_id}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const firstCat = val === SEED.transaction_types.income
-                    ? incomeCategories[0]?.id || ''
-                    : expenseCategories[0]?.id || '';
-                  setFormData({ ...formData, transaction_type_id: val, category_id: firstCat });
+
+            {/* Type Selector */}
+            <div className="flex gap-2 p-1 bg-muted/50 rounded-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  const firstCat = expenseCategories[0]?.id || '';
+                  setFormData({ ...formData, transaction_type_id: SEED.transaction_types.expense, category_id: firstCat });
                 }}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 animate-none"
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  formData.transaction_type_id === SEED.transaction_types.expense
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
-                <option value={SEED.transaction_types.expense}>Spend (Expense)</option>
-                <option value={SEED.transaction_types.income}>Income</option>
-                <option value={SEED.transaction_types.transfer}>Transfer / Adjustment</option>
-              </select>
+                Expense
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const firstCat = incomeCategories[0]?.id || '';
+                  setFormData({ ...formData, transaction_type_id: SEED.transaction_types.income, category_id: firstCat });
+                }}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  formData.transaction_type_id === SEED.transaction_types.income
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Income
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, transaction_type_id: SEED.transaction_types.transfer })}
+                className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all ${
+                  formData.transaction_type_id === SEED.transaction_types.transfer
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Transfer
+              </button>
             </div>
-            <div className="flex flex-col gap-1 order-2 sm:order-4">
-              <label className="text-xs font-bold text-muted-foreground">
-                Amount ({currencySymbol}) {isTransfer && <span className="font-normal opacity-80">- Use negative for Money Out</span>}
-              </label>
+
+            {/* Amount Field */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-muted-foreground">Amount ({currencySymbol})</label>
               <input
+                ref={amountInputRef}
                 type="number"
                 inputMode="numeric"
                 step="0.01"
                 required
                 value={formData.amount || ''}
                 onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                className="w-full px-4 py-3.5 rounded-xl border border-border bg-background text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                placeholder="0.00"
               />
             </div>
+
+            {/* Category Selector - All Categories */}
             {!isTransfer && (
-              <div className="flex flex-col gap-1 order-3 sm:order-5 sm:col-span-2">
+              <div className="flex flex-col gap-2">
                 <label className="text-xs font-bold text-muted-foreground">Category</label>
-                <select
-                  value={formData.category_id}
-                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                >
-                  {activeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {frequentlyUsedCategories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, category_id: cat.id })}
+                      className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                        formData.category_id === cat.id
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
+                          : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-            <div className="flex flex-col gap-1 order-4 sm:order-2">
-              <label className="text-xs font-bold text-muted-foreground">Date</label>
-              <input
-                type="date"
-                required
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-              />
-            </div>
-            <div className="flex flex-col gap-1 order-5 col-span-2 sm:order-3 sm:col-span-1">
+
+            {/* Description Field */}
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-muted-foreground">Description / Source</label>
               <input
                 type="text"
                 required
                 value={formData.merchant}
                 onChange={(e) => setFormData({ ...formData, merchant: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 placeholder="e.g. Starbucks, Salary Paycheck"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {!skipLedger && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-muted-foreground">{isTransfer ? 'Source Account' : 'Account'}</label>
-                {!isAddingAccount && (
-                  <button 
-                    type="button" 
-                    onClick={() => setIsAddingAccount(true)}
-                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+            {/* Account and Date - Side by Side */}
+            <div className="grid grid-cols-2 gap-3">
+              {!skipLedger && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-muted-foreground">{isTransfer ? 'Source' : 'Account'}</label>
+                  </div>
+                  <select
+                    required
+                    value={formData.account_id}
+                    onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
+                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                   >
-                    <Plus className="h-3 w-3" /> New
-                  </button>
-                )}
-              </div>
-              
-              {isAddingAccount ? (
-                <div className="flex gap-2">
-                  <input 
-                    autoFocus
-                    type="text" 
-                    placeholder="e.g. Amex Platinum" 
-                    value={newAccountName}
-                    onChange={e => setNewAccountName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                  <Button type="button" size="sm" onClick={submitNewAccount} className="px-3">Save</Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => { setIsAddingAccount(false); setNewAccountName(''); }} className="px-2">X</Button>
+                    <option value="">Select</option>
+                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
                 </div>
-              ) : (
-                <select
-                  required
-                  value={formData.account_id}
-                  onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                >
-                  <option value="">Select account</option>
-                  {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
               )}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-muted-foreground">Date</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
             </div>
-            )}
 
+            {/* Transfer Destination */}
             {isTransfer && (
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-muted-foreground">Destination Account</label>
                 <select
                   value={formData.transfer_to_account_id}
                   onChange={(e) => setFormData({ ...formData, transfer_to_account_id: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="">Select destination</option>
                   {accounts.filter(a => a.account_type !== 'Credit Card').map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
             )}
-          </div>
 
-          {/* Receipt Preview Section (Only show if image exists) */}
-          {receiptPreview && (
-            <div className="flex flex-col gap-2 pt-3 border-t border-border/30">
-              <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-4 w-4" />
-                Attached Receipt
-              </label>
-              <div className="relative group rounded-lg overflow-hidden border border-border/50 bg-background flex flex-col items-center">
-                <img src={receiptPreview} alt="Receipt preview" className="max-h-[160px] object-contain" />
-                <div className="hidden md:flex absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center">
-                  <button type="button" onClick={() => { setReceiptFile(null); setReceiptPreview(null); }} className="text-white text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer">
-                    <Trash2 className="h-3 w-3" /> Remove
-                  </button>
+            {/* More Options Collapsible */}
+            <div className="border border-border/50 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMoreOptionsOpen(!moreOptionsOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-muted-foreground hover:bg-muted/50 transition-colors"
+              >
+                <span>More options</span>
+                {moreOptionsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {moreOptionsOpen && (
+                <div className="px-4 pb-4 pt-2 space-y-4 border-t border-border/30">
+                  {/* Recurring */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="is_recurring"
+                        checked={formData.is_recurring}
+                        onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                        className="rounded border-border text-primary focus:ring-primary/45"
+                      />
+                      <label htmlFor="is_recurring" className="text-xs font-bold text-muted-foreground cursor-pointer">
+                        This is a recurring entry
+                      </label>
+                    </div>
+                    {formData.is_recurring && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-muted-foreground">Repeat Frequency</label>
+                        <select
+                          value={formData.recurrence_interval}
+                          onChange={(e) => setFormData({ ...formData, recurrence_interval: e.target.value })}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        >
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="3 months">Every 3 Months</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Notes */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-muted-foreground">Short Note (Optional)</label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 h-16 resize-none"
+                      placeholder="Record details..."
+                    />
+                  </div>
+
+                  {/* Project */}
+                  {projectsAvailable && projects.length > 0 && formData.transaction_type_id !== SEED.transaction_types.transfer && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-muted-foreground">Assign to Project</label>
+                      <ProjectSelector
+                        projects={projects}
+                        value={formData.project_id}
+                        activeOnly
+                        trackedOnly
+                        noneLabel="None (regular expense)"
+                        onChange={(val) => setFormData({ ...formData, project_id: val })}
+                      />
+                    </div>
+                  )}
+
+                  {/* Receipt Upload */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                      <FileText className="h-4 w-4" />
+                      Attach Receipt (Optional)
+                    </label>
+                    {receiptPreview ? (
+                      <div className="relative group rounded-lg overflow-hidden border border-border/50 bg-background flex flex-col items-center">
+                        <img src={receiptPreview} alt="Receipt preview" className="max-h-[160px] object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => { setReceiptFile(null); setReceiptPreview(null); }}
+                          className="min-h-[44px] w-full flex items-center justify-center gap-1.5 text-xs font-bold text-destructive bg-destructive/10 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remove photo
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center justify-center p-4 border-2 border-dashed border-border/50 rounded-xl bg-card hover:bg-muted/10 transition-colors cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handleReceiptUpload}
+                          disabled={isReceiptScannerLoading}
+                        />
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Camera className="h-4 w-4" />
+                          <span>Tap to add receipt</span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
                 </div>
-                <button
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              {editingTxId && (
+                <Button
                   type="button"
-                  onClick={() => { setReceiptFile(null); setReceiptPreview(null); }}
-                  className="md:hidden min-h-[44px] w-full flex items-center justify-center gap-1.5 text-xs font-bold text-destructive bg-destructive/10 cursor-pointer"
+                  variant="outline"
+                  className="text-red-500 hover:text-red-600 border-red-500/20 bg-red-500/10"
+                  onClick={() => { setIsModalOpen(false); handleDelete(editingTxId); }}
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> Remove photo
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* RECURRING OPTIONS */}
-          <div className="space-y-3 border-t border-border/30 pt-3 select-none">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="is_recurring"
-                checked={formData.is_recurring}
-                onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
-                className="rounded border-border text-primary focus:ring-primary/45"
-              />
-              <label htmlFor="is_recurring" className="text-xs font-bold text-muted-foreground cursor-pointer">
-                This is a recurring entry (e.g. monthly paycheck, rent)
-              </label>
-            </div>
-
-            {formData.is_recurring && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold text-muted-foreground">Repeat Frequency</label>
-                <select
-                  value={formData.recurrence_interval}
-                  onChange={(e) => setFormData({ ...formData, recurrence_interval: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
-                >
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="3 months">Every 3 Months</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-muted-foreground">Short Note (Optional)</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 h-16 resize-none"
-              placeholder="Record details..."
-            />
-          </div>
-
-          {projectsAvailable && projects.length > 0 && formData.transaction_type_id !== SEED.transaction_types.transfer && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-muted-foreground">Assign to Project</label>
-              <ProjectSelector
-                projects={projects}
-                value={formData.project_id}
-                activeOnly
-                trackedOnly
-                noneLabel="None (regular expense)"
-                onChange={(val) => setFormData({ ...formData, project_id: val })}
-              />
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 border-t border-border/40 pt-4 mt-4 select-none">
-            {editingTxId && (
-              <Button type="button" variant="outline" className="text-red-500 hover:text-red-600 border-red-500/20 bg-red-500/10 mr-auto flex items-center" onClick={() => { setIsModalOpen(false); handleDelete(editingTxId); }}>
-                <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                  <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="flex-1">
+                Cancel
               </Button>
-            )}
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              Save Entry
-            </Button>
-          </div>
-        </form>
-        </div>
+              <Button type="submit" className="flex-1">
+                {editingTxId ? 'Update' : 'Save'}
+              </Button>
+            </div>
+          </form>
         )}
       </Dialog>
 

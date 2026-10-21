@@ -16,6 +16,7 @@ import { Button } from '../components/ui/Button';
 import { Dialog } from '../components/ui/Dialog';
 import { PinSetupPrompt } from '../components/PinSetupPrompt';
 import { MoveMoneySheet, type MoveMoneyPrefill } from '../components/MoveMoneySheet';
+import { TransactionFormDialog } from '../components/TransactionFormDialog';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
 import { useAppRefresh } from '../lib/refresh';
 import { staggerContainer, staggerItem } from '../lib/motion';
@@ -50,6 +51,14 @@ export const Dashboard: React.FC = () => {
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [currencySymbol, setCurrencySymbol] = useState('$');
+
+  // Transaction form state
+  const [txFormOpen, setTxFormOpen] = useState(false);
+  const [txAccounts, setTxAccounts] = useState<any[]>([]);
+  const [txExpenseCategories, setTxExpenseCategories] = useState<any[]>([]);
+  const [txIncomeCategories, setTxIncomeCategories] = useState<any[]>([]);
+  const [txProjects, setTxProjects] = useState<any[]>([]);
+  const [txProjectsAvailable, setTxProjectsAvailable] = useState(false);
   
   // Time filter state
   const [timeFilter, setTimeFilter] = useState<'current_month' | 'last_month' | 'last_3_months' | 'last_1_year' | 'all'>('current_month');
@@ -107,7 +116,7 @@ export const Dashboard: React.FC = () => {
       const silent = refreshKey > 0;
       if (!silent) setLoading(true);
       try {
-        const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: assetsData }, { data: nwHistoryData }, { data: budgetsData }] = await Promise.all([
+        const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: assetsData }, { data: nwHistoryData }, { data: budgetsData }, { data: incCatData }, projectsRes] = await Promise.all([
           supabase.from('accounts').select('*').order('name', { ascending: true }),
           supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
           supabase.from('goals').select('*'),
@@ -117,7 +126,9 @@ export const Dashboard: React.FC = () => {
           supabase.from('user_settings').select('base_currency_id, hidden_asset_account_ids, currencies(symbol)').maybeSingle(),
           supabase.from('assets').select('*').eq('is_deleted', false),
           supabase.from('networth_history').select('*').order('date', { ascending: true }),
-          supabase.from('budgets').select('*')
+          supabase.from('budgets').select('*'),
+          supabase.from('income_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
+          fetchProjectsSafe()
         ]);
 
         let finalAccounts = accountsData;
@@ -138,20 +149,29 @@ export const Dashboard: React.FC = () => {
           setHiddenAccountIds(settingsData.hidden_asset_account_ids);
         }
 
-        if (finalAccounts) setAccounts(finalAccounts);
+        if (finalAccounts) {
+          setAccounts(finalAccounts);
+          setTxAccounts(finalAccounts);
+        }
         if (txData) setTransactions(txData);
         if (goalsData) setGoals(goalsData);
         if (loansData) setLoans(loansData);
         if (assetsData) setAssets(assetsData);
         if (nwHistoryData) setNetworthHistory(nwHistoryData);
-        if (catData) setAllCats(catData);
+        if (catData) {
+          setAllCats(catData);
+          setTxExpenseCategories(catData);
+        }
         if (budgetsData) setBudgets(budgetsData);
+        if (incCatData) setTxIncomeCategories(incCatData);
         if (invData) {
           setInvestments(invData);
           if (invData.length > 0) fetchLivePrices(invData).catch(console.error);
         }
-        const { projects: projRows } = await fetchProjectsSafe();
+        const { projects: projRows } = projectsRes;
         setProjects(projRows);
+        setTxProjects(projRows);
+        setTxProjectsAvailable(projRows && projRows.length > 0);
       } finally {
         setLoading(false);
         loadDoneRef.current?.();
@@ -590,7 +610,7 @@ export const Dashboard: React.FC = () => {
           <button
             type="button"
             aria-label="Log transaction"
-            onClick={() => navigate({ to: '/money', search: { add: '1' } })}
+            onClick={() => setTxFormOpen(true)}
             className="flex items-center justify-center h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer clay-btn"
           >
             <Plus className="h-4 w-4" />
@@ -603,7 +623,7 @@ export const Dashboard: React.FC = () => {
         <div className="flex justify-between items-center gap-3">
           <h1 className="page-title text-foreground m-0">Dashboard</h1>
           <div className="flex items-center gap-2 shrink-0">
-            <Button size="sm" variant="outline" onClick={() => navigate({ to: '/money', search: { add: '1' } })} className="gap-1.5">
+            <Button size="sm" variant="outline" onClick={() => setTxFormOpen(true)} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" />
               Log transaction
             </Button>
@@ -1228,7 +1248,7 @@ export const Dashboard: React.FC = () => {
                 <FileText className="h-9 w-9 text-muted-foreground/40 mb-2" />
                 <p className="text-sm font-semibold text-foreground mb-1">No activity for this period</p>
                 <p className="text-xs text-muted-foreground text-center px-4 mb-3">Try changing the filter or log a new transaction.</p>
-                <Button size="sm" onClick={() => navigate({ to: '/money' })}>Log Transaction</Button>
+                <Button size="sm" onClick={() => setTxFormOpen(true)}>Log Transaction</Button>
               </div>
             ) : (
               <div className="flex flex-col">
@@ -1278,6 +1298,18 @@ export const Dashboard: React.FC = () => {
         onSuccess={() => setRefreshKey((k) => k + 1)}
         currencySymbol={currencySymbol}
         prefill={movePrefill}
+      />
+
+      <TransactionFormDialog
+        isOpen={txFormOpen}
+        onClose={() => setTxFormOpen(false)}
+        onSuccess={() => setRefreshKey((k) => k + 1)}
+        accounts={txAccounts}
+        expenseCategories={txExpenseCategories}
+        incomeCategories={txIncomeCategories}
+        currencySymbol={currencySymbol}
+        projects={txProjects}
+        projectsAvailable={txProjectsAvailable}
       />
 
       <Dialog isOpen={filterSheetOpen} onClose={() => setFilterSheetOpen(false)} title="Time period">
