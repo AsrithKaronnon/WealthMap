@@ -46,6 +46,7 @@ export const Dashboard: React.FC = () => {
   const [investments, setInvestments] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [allCats, setAllCats] = useState<any[]>([]);
+  const [budgets, setBudgets] = useState<any[]>([]);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [currencySymbol, setCurrencySymbol] = useState('$');
@@ -71,6 +72,7 @@ export const Dashboard: React.FC = () => {
   const [spendingChartOpen, setSpendingChartOpen] = useState(true);
   const [incomeChartOpen, setIncomeChartOpen] = useState(true);
   const [loansOpen, setLoansOpen] = useState(true);
+  const [budgetChartOpen, setBudgetChartOpen] = useState(true);
 
   const toggleNwVisible = () => {
     setNwVisible((v) => {
@@ -105,7 +107,7 @@ export const Dashboard: React.FC = () => {
       const silent = refreshKey > 0;
       if (!silent) setLoading(true);
       try {
-        const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: assetsData }, { data: nwHistoryData }] = await Promise.all([
+        const [{ data: accountsData }, { data: txData }, { data: goalsData }, { data: loansData }, { data: catData }, { data: invData }, { data: settingsData }, { data: assetsData }, { data: nwHistoryData }, { data: budgetsData }] = await Promise.all([
           supabase.from('accounts').select('*').order('name', { ascending: true }),
           supabase.from('transactions').select('*').eq('is_deleted', false).order('date', { ascending: false }),
           supabase.from('goals').select('*'),
@@ -114,7 +116,8 @@ export const Dashboard: React.FC = () => {
           supabase.from('investments').select('*'),
           supabase.from('user_settings').select('base_currency_id, hidden_asset_account_ids, currencies(symbol)').maybeSingle(),
           supabase.from('assets').select('*').eq('is_deleted', false),
-          supabase.from('networth_history').select('*').order('date', { ascending: true })
+          supabase.from('networth_history').select('*').order('date', { ascending: true }),
+          supabase.from('budgets').select('*')
         ]);
 
         let finalAccounts = accountsData;
@@ -142,6 +145,7 @@ export const Dashboard: React.FC = () => {
         if (assetsData) setAssets(assetsData);
         if (nwHistoryData) setNetworthHistory(nwHistoryData);
         if (catData) setAllCats(catData);
+        if (budgetsData) setBudgets(budgetsData);
         if (invData) {
           setInvestments(invData);
           if (invData.length > 0) fetchLivePrices(invData).catch(console.error);
@@ -449,6 +453,43 @@ export const Dashboard: React.FC = () => {
     return top;
   }, [filteredTxs, allCats, taggedProjectIds, untrackedIds]);
   const totalSpend = spendByCategory.reduce((s, c) => s + c.value, 0);
+
+  // Budget vs Actual by Category
+  const budgetVsActual = useMemo(() => {
+    const budgetMap = new Map<string, number>();
+    budgets.forEach(b => {
+      const cat = allCats.find(c => c.id === b.category_id);
+      if (cat) budgetMap.set(cat.name, parseFloat(b.amount) || 0);
+    });
+
+    const spendMap = new Map<string, number>();
+    filteredTxs
+      .filter(t => t.transaction_type_id === SEED.transaction_types.expense && isLedgerTransaction(t, untrackedIds))
+      .forEach(t => {
+        const cat = allCats.find(c => c.id === t.category_id);
+        if (cat) spendMap.set(cat.name, (spendMap.get(cat.name) || 0) + (parseFloat(t.amount) || 0));
+      });
+
+    const result: { name: string; spent: number; budget: number; remaining: number; isOver: boolean }[] = [];
+    budgetMap.forEach((budget, name) => {
+      const spent = spendMap.get(name) || 0;
+      const remaining = budget - spent;
+      result.push({
+        name,
+        spent: Math.round(spent),
+        budget: Math.round(budget),
+        remaining: Math.round(remaining),
+        isOver: remaining < 0
+      });
+    });
+
+    return result.sort((a, b) => {
+      // Sort over-budget first, then by remaining amount
+      if (a.isOver && !b.isOver) return -1;
+      if (!a.isOver && b.isOver) return 1;
+      return a.remaining - b.remaining;
+    });
+  }, [filteredTxs, allCats, budgets, untrackedIds]);
 
   // 6-Month Income vs Expenses Line Chart Data (independent of filter)
   const sixMonthData = useMemo(() => {
@@ -1011,6 +1052,59 @@ export const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
       </motion.div>
+
+      {/* ── BUDGET TRACKING ── */}
+      {budgetVsActual.length > 0 && (
+        <motion.div variants={staggerItem}>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Budget vs Actual</h3>
+                    <p className="text-xs text-muted-foreground">Category spending vs limits</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBudgetChartOpen(!budgetChartOpen)}
+                  className="md:hidden flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted/60 cursor-pointer"
+                  aria-label={budgetChartOpen ? 'Collapse budget chart' : 'Expand budget chart'}
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${budgetChartOpen ? '' : '-rotate-90'}`} />
+                </button>
+              </div>
+              {budgetChartOpen && (
+                <div className="space-y-3">
+                  {budgetVsActual.map((item) => (
+                    <div key={item.name} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-foreground">{item.name}</span>
+                        <span className={`${item.isOver ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'} font-semibold`}>
+                          {item.isOver ? '+' : ''}{fmt(item.remaining, currencySymbol)}
+                        </span>
+                      </div>
+                      <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="absolute top-0 left-0 h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, (item.spent / item.budget) * 100)}%`,
+                            backgroundColor: item.isOver ? '#f43f5e' : '#10b981'
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>Spent: {fmt(item.spent, currencySymbol)}</span>
+                        <span>Budget: {fmt(item.budget, currencySymbol)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* ── GOALS & LOANS ── */}
       {(goals.length > 0 || loans.length > 0) && (
