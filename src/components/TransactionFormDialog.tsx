@@ -80,14 +80,14 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
           amount: 0,
           transaction_type_id: SEED.transaction_types.expense,
           category_id: expenseCategories[0]?.id || SEED.expense_categories.food,
-          account_id: accounts[0]?.id || '',
-          transfer_to_account_id: '',
+          account_id: accounts[0]?.id || null,
+          transfer_to_account_id: null,
           merchant: '',
           notes: '',
           tags: ['Essential'],
           is_recurring: false,
           recurrence_interval: 'monthly',
-          project_id: ''
+          project_id: null
         });
       }
       setModalActiveTab('manual');
@@ -209,19 +209,20 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
         receiptUrl = publicUrl;
       }
 
-      const txData = {
+      // Sanitize empty strings to null for UUID fields
+      const txData: any = {
         date: formData.date,
         amount: formData.amount,
         transaction_type_id: formData.transaction_type_id,
-        category_id: isTransfer ? null : formData.category_id,
-        account_id: skipLedger ? null : formData.account_id,
-        transfer_to_account_id: isTransfer ? formData.transfer_to_account_id : null,
+        category_id: isTransfer ? null : (formData.category_id || null),
+        account_id: skipLedger ? null : (formData.account_id || null),
+        transfer_to_account_id: isTransfer ? (formData.transfer_to_account_id || null) : null,
         merchant: formData.merchant,
         notes: formData.notes,
         tags: formData.tags,
         is_recurring: formData.is_recurring,
         recurrence_interval: formData.recurrence_interval,
-        project_id: formData.project_id,
+        project_id: formData.project_id || null,
         receipt_url: receiptUrl || null,
       };
 
