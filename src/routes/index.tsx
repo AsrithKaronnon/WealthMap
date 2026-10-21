@@ -67,6 +67,10 @@ export const Dashboard: React.FC = () => {
       return true;
     }
   });
+  // Mobile expand/collapse state for charts and loans
+  const [spendingChartOpen, setSpendingChartOpen] = useState(true);
+  const [incomeChartOpen, setIncomeChartOpen] = useState(true);
+  const [loansOpen, setLoansOpen] = useState(true);
 
   const toggleNwVisible = () => {
     setNwVisible((v) => {
@@ -910,38 +914,54 @@ export const Dashboard: React.FC = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">Where You Spent</h3>
-                  <p className="text-xs text-muted-foreground">For selected period</p>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Where You Spent</h3>
+                    <p className="text-xs text-muted-foreground">For selected period</p>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-foreground">{fmt(totalSpend, currencySymbol)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-foreground">{fmt(totalSpend, currencySymbol)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSpendingChartOpen(!spendingChartOpen)}
+                    className="md:hidden flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted/60 cursor-pointer"
+                    aria-label={spendingChartOpen ? 'Collapse chart' : 'Expand chart'}
+                  >
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${spendingChartOpen ? '' : '-rotate-90'}`} />
+                  </button>
+                </div>
               </div>
-              {spendByCategory.length === 0 ? (
-                <div className="h-40 flex items-center justify-center border border-dashed border-border rounded-xl">
-                  <p className="text-xs text-muted-foreground">No expenses logged in this period</p>
-                </div>
-              ) : (
-                <div className="flex items-center gap-4">
-                  <div className="h-36 w-36 shrink-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={spendByCategory} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
-                          {spendByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px', color: 'hsl(var(--foreground))' }} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
-                      </PieChart>
-                    </ResponsiveContainer>
+              {spendingChartOpen && (
+                <>
+                {spendByCategory.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center border border-dashed border-border rounded-xl">
+                    <p className="text-xs text-muted-foreground">No expenses logged in this period</p>
                   </div>
-                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                    {spendByCategory.map((cat, i) => (
-                      <div key={cat.name} className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                        <span className="text-xs text-foreground truncate flex-1">{cat.name}</span>
-                        <span className="text-xs font-semibold text-foreground shrink-0">{fmt(cat.value, currencySymbol)}</span>
-                      </div>
-                    ))}
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <div className="h-36 w-36 shrink-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={spendByCategory} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey="value" stroke="none">
+                            {spendByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px', color: 'hsl(var(--foreground))' }} formatter={(v: any) => [fmt(v, currencySymbol), 'Spent']} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                      {spendByCategory.map((cat, i) => (
+                        <div key={cat.name} className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                          <span className="text-xs text-foreground truncate flex-1">{cat.name}</span>
+                          <span className="text-xs font-semibold text-foreground shrink-0">{fmt(cat.value, currencySymbol)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -949,28 +969,44 @@ export const Dashboard: React.FC = () => {
           {/* 6-Month Income vs Expenses Line Chart */}
           <Card>
             <CardContent className="p-4">
-              <div className="mb-3">
-                <h3 className="text-sm font-bold text-foreground">Income vs Expenses</h3>
-                <p className="text-xs text-muted-foreground">Last 6 months trend</p>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Income vs Expenses</h3>
+                    <p className="text-xs text-muted-foreground">Last 6 months trend</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIncomeChartOpen(!incomeChartOpen)}
+                  className="md:hidden flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted/60 cursor-pointer"
+                  aria-label={incomeChartOpen ? 'Collapse chart' : 'Expand chart'}
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${incomeChartOpen ? '' : '-rotate-90'}`} />
+                </button>
               </div>
-              {sixMonthData.every(d => d.Income === 0 && d.Expenses === 0) ? (
-                <div className="h-40 flex items-center justify-center border border-dashed border-border rounded-xl">
-                  <p className="text-xs text-muted-foreground">No data in last 6 months</p>
-                </div>
-              ) : (
-                <div className="h-40">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={sixMonthData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => fmt(v, currencySymbol)} />
-                      <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px', color: 'hsl(var(--foreground))' }} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
-                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: 'hsl(var(--foreground))' }} />
-                      <Line type="monotone" dataKey="Income" stroke="#10b981" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#10b981' }} activeDot={{ r: 5 }} />
-                      <Line type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#ef4444' }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+              {incomeChartOpen && (
+                <>
+                {sixMonthData.every(d => d.Income === 0 && d.Expenses === 0) ? (
+                  <div className="h-40 flex items-center justify-center border border-dashed border-border rounded-xl">
+                    <p className="text-xs text-muted-foreground">No data in last 6 months</p>
+                  </div>
+                ) : (
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={sixMonthData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={v => fmt(v, currencySymbol)} />
+                        <Tooltip trigger={isMobile ? 'click' : 'hover'} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px', color: 'hsl(var(--foreground))' }} formatter={(v: any) => [fmt(v, currencySymbol), undefined]} />
+                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px', color: 'hsl(var(--foreground))' }} />
+                        <Line type="monotone" dataKey="Income" stroke="#10b981" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#10b981' }} activeDot={{ r: 5 }} />
+                        <Line type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={3} dot={{ r: 3, strokeWidth: 2, fill: '#ef4444' }} activeDot={{ r: 5 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -1004,8 +1040,19 @@ export const Dashboard: React.FC = () => {
           {loans.length > 0 && (
             <Card className="relative w-full overflow-hidden">
               <CardContent className="p-3 sm:p-4 flex flex-col gap-2.5">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Loans</span>
-                <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Loans</span>
+                  <button
+                    type="button"
+                    onClick={() => setLoansOpen(!loansOpen)}
+                    className="md:hidden flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:bg-muted/60 cursor-pointer"
+                    aria-label={loansOpen ? 'Collapse loans' : 'Expand loans'}
+                  >
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${loansOpen ? '' : '-rotate-90'}`} />
+                  </button>
+                </div>
+                {loansOpen && (
+                  <div className="flex flex-col gap-2 w-full">
                   {loans.map(l => {
                     const total = parseFloat(l.total_amount) || 0;
                     const paid = Math.max(0, total - (parseFloat(l.outstanding_amount) || 0));
@@ -1049,6 +1096,7 @@ export const Dashboard: React.FC = () => {
                     );
                   })}
                 </div>
+                )}
               </CardContent>
             </Card>
           )}
