@@ -1081,7 +1081,7 @@ export const Dashboard: React.FC = () => {
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-medium text-foreground">{item.name}</span>
                         <span className={`${item.isOver ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'} font-semibold`}>
-                          {item.isOver ? '+' : ''}{fmt(item.remaining, currencySymbol)}
+                          {item.isOver ? '+' : ''}{fmt(item.remaining, currencySymbol)} remaining
                         </span>
                       </div>
                       <div className="relative h-2 rounded-full bg-muted overflow-hidden">
@@ -1094,8 +1094,8 @@ export const Dashboard: React.FC = () => {
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>Spent: {fmt(item.spent, currencySymbol)}</span>
                         <span>Budget: {fmt(item.budget, currencySymbol)}</span>
+                        <span className="text-rose-600 dark:text-rose-400">Spent: {fmt(item.spent, currencySymbol)}</span>
                       </div>
                     </div>
                   ))}
