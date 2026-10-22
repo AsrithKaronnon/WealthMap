@@ -47,15 +47,15 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
     date: new Date().toISOString().split('T')[0],
     amount: 0,
     transaction_type_id: SEED.transaction_types.expense,
-    category_id: '',
-    account_id: '',
-    transfer_to_account_id: '',
+    category_id: null as string | null,
+    account_id: null as string | null,
+    transfer_to_account_id: null as string | null,
     merchant: '',
     notes: '',
     tags: ['Essential'],
     is_recurring: false,
     recurrence_interval: 'monthly',
-    project_id: ''
+    project_id: null as string | null
   });
 
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -87,7 +87,7 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
           tags: ['Essential'],
           is_recurring: false,
           recurrence_interval: 'monthly',
-          project_id: null
+          project_id: null as string | null
         });
       }
       setModalActiveTab('manual');
@@ -214,15 +214,15 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
         date: formData.date,
         amount: formData.amount,
         transaction_type_id: formData.transaction_type_id,
-        category_id: isTransfer ? null : (formData.category_id || null),
-        account_id: skipLedger ? null : (formData.account_id || null),
-        transfer_to_account_id: isTransfer ? (formData.transfer_to_account_id || null) : null,
+        category_id: isTransfer ? null : (formData.category_id === '' ? null : formData.category_id),
+        account_id: skipLedger ? null : (formData.account_id === '' ? null : formData.account_id),
+        transfer_to_account_id: isTransfer ? (formData.transfer_to_account_id === '' ? null : formData.transfer_to_account_id) : null,
         merchant: formData.merchant,
         notes: formData.notes,
         tags: formData.tags,
         is_recurring: formData.is_recurring,
         recurrence_interval: formData.recurrence_interval,
-        project_id: formData.project_id || null,
+        project_id: formData.project_id === '' ? null : formData.project_id,
         receipt_url: receiptUrl || null,
       };
 
@@ -430,8 +430,8 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
                 </div>
                 <select
                   required
-                  value={formData.account_id}
-                  onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
+                  value={formData.account_id || ''}
+                  onChange={(e) => setFormData({ ...formData, account_id: e.target.value || null })}
                   className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="">Select</option>
@@ -456,8 +456,8 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-muted-foreground">Destination Account</label>
               <select
-                value={formData.transfer_to_account_id}
-                onChange={(e) => setFormData({ ...formData, transfer_to_account_id: e.target.value })}
+                value={formData.transfer_to_account_id || ''}
+                onChange={(e) => setFormData({ ...formData, transfer_to_account_id: e.target.value || null })}
                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
                 <option value="">Select destination</option>
@@ -526,11 +526,11 @@ export const TransactionFormDialog: React.FC<TransactionFormDialogProps> = ({
                     <label className="text-xs font-bold text-muted-foreground">Assign to Project</label>
                     <ProjectSelector
                       projects={projects}
-                      value={formData.project_id}
+                      value={formData.project_id || ''}
                       activeOnly
                       trackedOnly
                       noneLabel="None (regular expense)"
-                      onChange={(val) => setFormData({ ...formData, project_id: val })}
+                      onChange={(val) => setFormData({ ...formData, project_id: val || null })}
                     />
                   </div>
                 )}
